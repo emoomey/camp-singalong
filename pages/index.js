@@ -298,7 +298,7 @@ export default function Home() {
             {currentSong?(
               <>
                 <div style={{fontSize:'5rem',fontWeight:'bold',marginBottom:'1rem'}}>{currentSong.title}</div>
-                <div style={{fontSize:'3.75rem',color:'#bbf7d0'}}>Page {currentSong.page}</div>
+               <div style={{fontSize:'3.75rem',color:'#bbf7d0'}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
               </>
             ):(
               <div style={{fontSize:'3.75rem',color:'#86efac'}}>Pick a song to start!</div>
@@ -314,7 +314,7 @@ export default function Home() {
                   <div key={song.id} style={{background:'rgba(255,255,255,0.1)',borderRadius:'0.75rem',padding:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                     <div>
                       <div style={{fontSize:'1.875rem',fontWeight:'600'}}>{idx+1}. {song.song_title}</div>
-                     Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}                    </div>
+                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
                     <div style={{fontSize:'1.5rem',color:'#86efac'}}>- {song.requester}</div>
                   </div>
                 ))}
@@ -356,7 +356,7 @@ export default function Home() {
             <div style={{background:theme.primaryLight,borderRadius:'0.5rem',padding:'1rem',border:`2px solid ${theme.borderLight}`,marginTop:'1rem'}}>
               <div style={{fontSize:'0.875rem',color:theme.textAccent,fontWeight:'600',marginBottom:'0.25rem'}}>NOW SINGING</div>
               <div style={{fontSize:'1.5rem',fontWeight:'bold',color:theme.text}}>{currentSong.title}</div>
-              <div style={{fontSize:'1.125rem',color:theme.textAccent}}>Page {currentSong.page}</div>
+               <div style={{fontSize:'1.125rem',color:theme.textAccent}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
             </div>
           )}
         </div>
@@ -438,7 +438,7 @@ export default function Home() {
                   </div>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:'600',color:theme.text}}>{song.song_title}</div>
-                    Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}
+                  <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
                   </div>
                   <button onClick={()=>playSong(song)}
                     style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer'}}>
