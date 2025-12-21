@@ -135,9 +135,10 @@ export default function Home() {
           'Content-Type': 'application/json', 'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          room_id: roomCode, song_title: song.title, song_page: song.page,
-          song_section: song.section, requester: requester, position: maxPosition + 1
-        })
+  room_id: roomCode, song_title: song.title, song_page: song.page,
+  song_section: song.section, requester: requester, position: maxPosition + 1,
+  old_page: song.old_page || null
+})
       });
       await loadRoomData();
     } catch (error) { console.error('Error adding to queue:', error); }
