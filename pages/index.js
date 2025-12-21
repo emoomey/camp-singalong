@@ -330,7 +330,7 @@ export default function Home() {
   }
 
   return (
-    <div style={{minHeight:'100vh',background:isDark?'#0f172a':'linear-gradient(to bottom right,#f0fdf4,#dbeafe)',padding:'1rem'}}>
+    <div style={{minHeight:'100vh',background:isDark?'#0f172a':'linear-gradient(to bottom right,#f0fdf4,#dbeafe)',padding:'0'}}>
       <div style={{maxWidth:'64rem',margin:'0 auto'}}>
         <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
