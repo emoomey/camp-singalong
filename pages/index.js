@@ -104,7 +104,7 @@ export default function Home() {
         setCurrentSong(roomData[0].current_song);
         setSungSongs(roomData[0].sung_songs || []);
       }
-      const queueResponse = await fetch(`${SUPABASE_URL}/rest/v1/queue?room_id=eq.${roomCode}&select=*&order=position.asc`, {
+      const queueResponse = await fetch(`${SUPABASE_URL}/rest/v1/queue?room_id=eq.${roomCode}&select=*,songs!inner(old_page)&order=position.asc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
       });
       setQueue((await queueResponse.json()) || []);
@@ -313,7 +313,7 @@ export default function Home() {
                   <div key={song.id} style={{background:'rgba(255,255,255,0.1)',borderRadius:'0.75rem',padding:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                     <div>
                       <div style={{fontSize:'1.875rem',fontWeight:'600'}}>{idx+1}. {song.song_title}</div>
-                      <div style={{fontSize:'1.5rem',color:'#bbf7d0'}}>Page {song.song_page}</div>
+                      <div style={{fontSize:'1.5rem',color:'#bbf7d0'}}>Page {song.song_page}{song.songs?.old_page ? ` (${song.songs.old_page})` : ''}</div>
                     </div>
                     <div style={{fontSize:'1.5rem',color:'#86efac'}}>- {song.requester}</div>
                   </div>
@@ -438,7 +438,7 @@ export default function Home() {
                   </div>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:'600',color:theme.text}}>{song.song_title}</div>
-                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page} • Requested by {song.requester}</div>
+                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.songs?.old_page ? ` (${song.songs.old_page})` : ''} • Requested by {song.requester}</div>
                   </div>
                   <button onClick={()=>playSong(song)}
                     style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer'}}>
