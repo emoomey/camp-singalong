@@ -104,7 +104,7 @@ export default function Home() {
         setCurrentSong(roomData[0].current_song);
         setSungSongs(roomData[0].sung_songs || []);
       }
-      const queueResponse = await fetch(`${SUPABASE_URL}/rest/v1/queue?room_id=eq.${roomCode}&select=*,songs!inner(old_page)&order=position.asc`, {
+      const queueResponse = await fetch(`${SUPABASE_URL}/rest/v1/queue?room_id=eq.${roomCode}&select=*&order=position.asc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
       });
       setQueue((await queueResponse.json()) || []);
