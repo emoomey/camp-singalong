@@ -459,7 +459,6 @@ export default function Home() {
             <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>Already Sung ({sungSongs.length})</h2>
             <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem'}}>
               {sungSongs.map((song,idx)=>(
-                {sungSongs.map((song,idx)=>(
                 <span key={idx} style={{background:theme.bgSecondary,padding:'0.25rem 0.75rem',borderRadius:'9999px',fontSize:'0.875rem',color:theme.text}}>
                   {song.title}
                 </span>
