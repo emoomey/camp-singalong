@@ -153,7 +153,7 @@ export default function Home() {
   };
 
   const playSong = async (song) => {
-    const songObj = { title: song.song_title, page: song.song_page, section: song.song_section };
+    const songObj = { title: song.song_title, page: song.song_page, section: song.song_section, old_page: song.old_page };
     await updateRoom({ current_song: songObj, sung_songs: [...sungSongs, songObj] });
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/queue?id=eq.${song.id}`, {
