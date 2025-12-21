@@ -34,6 +34,16 @@ export default function Home() {
   const [allSongs, setAllSongs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Detect dark mode
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDark(darkModeQuery.matches);
+    const handler = (e) => setIsDark(e.matches);
+    darkModeQuery.addEventListener('change', handler);
+    return () => darkModeQuery.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => { loadSongs(); }, []);
   useEffect(() => {
@@ -212,35 +222,51 @@ export default function Home() {
     song.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Theme colors
+  const theme = {
+    bg: isDark ? '#111827' : '#ffffff',
+    bgGradient: isDark ? 'linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a)' : 'linear-gradient(to bottom right, #14532d, #15803d, #14532d)',
+    bgSecondary: isDark ? '#1f2937' : '#f9fafb',
+    bgHover: isDark ? '#374151' : '#f3f4f6',
+    text: isDark ? '#f9fafb' : '#111827',
+    textSecondary: isDark ? '#d1d5db' : '#6b7280',
+    textAccent: isDark ? '#bbf7d0' : '#15803d',
+    primary: isDark ? '#22c55e' : '#16a34a',
+    primaryHover: isDark ? '#16a34a' : '#15803d',
+    primaryLight: isDark ? '#14532d' : '#f0fdf4',
+    border: isDark ? '#374151' : '#d1d5db',
+    borderLight: isDark ? '#4b5563' : '#e5e7eb',
+  };
+
   if (!roomCode) {
     return (
-      <div style={{minHeight:'100vh',background:'linear-gradient(to bottom right,#14532d,#15803d,#14532d)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
-        <div style={{background:'white',borderRadius:'1rem',boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)',padding:'2rem',maxWidth:'28rem',width:'100%'}}>
+      <div style={{minHeight:'100vh',background:theme.bgGradient,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+        <div style={{background:theme.bg,borderRadius:'1rem',boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)',padding:'2rem',maxWidth:'28rem',width:'100%'}}>
           <div style={{textAlign:'center',marginBottom:'2rem'}}>
             <div style={{fontSize:'4rem',marginBottom:'1rem'}}>🎵</div>
-            <h1 style={{fontSize:'1.875rem',fontWeight:'bold',color:'#111827',marginBottom:'0.5rem'}}>Camp Singalong</h1>
-            <p style={{color:'#6b7280'}}>Start or join a singalong session</p>
+            <h1 style={{fontSize:'1.875rem',fontWeight:'bold',color:theme.text,marginBottom:'0.5rem'}}>Camp Singalong</h1>
+            <p style={{color:theme.textSecondary}}>Start or join a singalong session</p>
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
             <button onClick={createRoom} disabled={loading}
-              style={{width:'100%',background:'#16a34a',color:'white',padding:'1rem',borderRadius:'0.5rem',fontWeight:'600',fontSize:'1.125rem',border:'none',cursor:'pointer',opacity:loading?0.5:1}}>
+              style={{width:'100%',background:theme.primary,color:'white',padding:'1rem',borderRadius:'0.5rem',fontWeight:'600',fontSize:'1.125rem',border:'none',cursor:'pointer',opacity:loading?0.5:1}}>
               {loading?'Creating...':'Create New Room'}
             </button>
             <div style={{position:'relative'}}>
               <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center'}}>
-                <div style={{width:'100%',borderTop:'1px solid #d1d5db'}}></div>
+                <div style={{width:'100%',borderTop:`1px solid ${theme.border}`}}></div>
               </div>
               <div style={{position:'relative',display:'flex',justifyContent:'center',fontSize:'0.875rem'}}>
-                <span style={{padding:'0 1rem',background:'white',color:'#6b7280'}}>OR</span>
+                <span style={{padding:'0 1rem',background:theme.bg,color:theme.textSecondary}}>OR</span>
               </div>
             </div>
             <div>
-              <label style={{display:'block',fontSize:'0.875rem',fontWeight:'500',color:'#374151',marginBottom:'0.5rem'}}>Join Existing Room</label>
+              <label style={{display:'block',fontSize:'0.875rem',fontWeight:'500',color:theme.text,marginBottom:'0.5rem'}}>Join Existing Room</label>
               <div style={{display:'flex',gap:'0.5rem'}}>
                 <input type="text" placeholder="Enter room code" value={roomCodeInput}
                   onChange={(e)=>setRoomCodeInput(e.target.value.toUpperCase())}
                   onKeyPress={(e)=>e.key==='Enter'&&joinRoom()}
-                  style={{flex:1,padding:'0.75rem 1rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',textTransform:'uppercase'}}
+                  style={{flex:1,padding:'0.75rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',textTransform:'uppercase',background:theme.bg,color:theme.text}}
                   maxLength={6}/>
                 <button onClick={joinRoom} disabled={loading||!roomCodeInput}
                   style={{background:'#2563eb',color:'white',padding:'0.75rem 1.5rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer',opacity:(loading||!roomCodeInput)?0.5:1}}>
@@ -256,7 +282,7 @@ export default function Home() {
 
   if (view==='display') {
     return (
-      <div style={{minHeight:'100vh',background:'linear-gradient(to bottom right,#14532d,#15803d,#14532d)',color:'white',padding:'2rem'}}>
+      <div style={{minHeight:'100vh',background:theme.bgGradient,color:'white',padding:'2rem'}}>
         <button onClick={()=>setView('control')}
           style={{position:'fixed',top:'1rem',right:'1rem',background:'rgba(255,255,255,0.2)',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.5rem'}}>
           📱 Switch to Control View
@@ -304,47 +330,47 @@ export default function Home() {
   }
 
   return (
-    <div style={{minHeight:'100vh',background:'linear-gradient(to bottom right,#f0fdf4,#dbeafe)',padding:'1rem'}}>
+    <div style={{minHeight:'100vh',background:isDark?'#0f172a':'linear-gradient(to bottom right,#f0fdf4,#dbeafe)',padding:'1rem'}}>
       <div style={{maxWidth:'64rem',margin:'0 auto'}}>
-        <div style={{background:'white',borderRadius:'0.75rem',boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
+        <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-            <h1 style={{fontSize:'1.875rem',fontWeight:'bold',color:'#166534',display:'flex',alignItems:'center',gap:'0.5rem'}}>
+            <h1 style={{fontSize:'1.875rem',fontWeight:'bold',color:theme.text,display:'flex',alignItems:'center',gap:'0.5rem'}}>
               🎵 Camp Singalong
             </h1>
             <button onClick={()=>setView('display')}
-              style={{background:'#16a34a',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',display:'flex',alignItems:'center',gap:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600'}}>
+              style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',display:'flex',alignItems:'center',gap:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600'}}>
               📺 Display View
             </button>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',background:'#f0fdf4',padding:'0.75rem',borderRadius:'0.5rem'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',background:theme.primaryLight,padding:'0.75rem',borderRadius:'0.5rem',border:`1px solid ${theme.borderLight}`}}>
             <div style={{flex:1}}>
-              <div style={{fontSize:'0.875rem',color:'#16a34a',fontWeight:'600'}}>Room Code</div>
-              <div style={{fontSize:'1.5rem',fontWeight:'bold',color:'#14532d'}}>{roomCode}</div>
+              <div style={{fontSize:'0.875rem',color:theme.textAccent,fontWeight:'600'}}>Room Code</div>
+              <div style={{fontSize:'1.5rem',fontWeight:'bold',color:theme.text}}>{roomCode}</div>
             </div>
             <button onClick={copyRoomCode}
-              style={{background:'#16a34a',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',display:'flex',alignItems:'center',gap:'0.5rem',border:'none',cursor:'pointer'}}>
+              style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',display:'flex',alignItems:'center',gap:'0.5rem',border:'none',cursor:'pointer'}}>
               {copied?'✓ Copied!':'📋 Copy'}
             </button>
           </div>
           {currentSong&&(
-            <div style={{background:'#f0fdf4',borderRadius:'0.5rem',padding:'1rem',border:'2px solid #bbf7d0',marginTop:'1rem'}}>
-              <div style={{fontSize:'0.875rem',color:'#16a34a',fontWeight:'600',marginBottom:'0.25rem'}}>NOW SINGING</div>
-              <div style={{fontSize:'1.5rem',fontWeight:'bold',color:'#14532d'}}>{currentSong.title}</div>
-              <div style={{fontSize:'1.125rem',color:'#15803d'}}>Page {currentSong.page}</div>
+            <div style={{background:theme.primaryLight,borderRadius:'0.5rem',padding:'1rem',border:`2px solid ${theme.borderLight}`,marginTop:'1rem'}}>
+              <div style={{fontSize:'0.875rem',color:theme.textAccent,fontWeight:'600',marginBottom:'0.25rem'}}>NOW SINGING</div>
+              <div style={{fontSize:'1.5rem',fontWeight:'bold',color:theme.text}}>{currentSong.title}</div>
+              <div style={{fontSize:'1.125rem',color:theme.textAccent}}>Page {currentSong.page}</div>
             </div>
           )}
         </div>
 
-        <div style={{background:'white',borderRadius:'0.75rem',boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
-          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:'#166534',marginBottom:'1rem'}}>🎲 Random Song Generator</h2>
+        <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
+          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>🎲 Random Song Generator</h2>
           <button onClick={()=>setShowSectionFilter(!showSectionFilter)}
-            style={{width:'100%',background:'#f3f4f6',padding:'0.5rem 1rem',borderRadius:'0.5rem',marginBottom:'1rem',border:'none',cursor:'pointer',color:'#1f2937'}}>
+            style={{width:'100%',background:theme.bgSecondary,padding:'0.5rem 1rem',borderRadius:'0.5rem',marginBottom:'1rem',border:`1px solid ${theme.border}`,cursor:'pointer',color:theme.text}}>
             Filter Sections ({selectedSections.length} selected)
           </button>
           {showSectionFilter&&(
-            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'0.5rem',marginBottom:'1rem',maxHeight:'15rem',overflowY:'auto',border:'1px solid #e5e7eb',borderRadius:'0.5rem',padding:'0.75rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'0.5rem',marginBottom:'1rem',maxHeight:'15rem',overflowY:'auto',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',padding:'0.75rem',background:theme.bgSecondary}}>
               {Object.entries(SECTION_INFO).map(([letter,name])=>(
-                <label key={letter} style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.875rem'}}>
+                <label key={letter} style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.875rem',color:theme.text}}>
                   <input type="checkbox" checked={selectedSections.includes(letter)}
                     onChange={()=>toggleSection(letter)} style={{width:'1rem',height:'1rem'}}/>
                   <span>{letter}: {name}</span>
@@ -353,37 +379,37 @@ export default function Home() {
             </div>
           )}
           <button onClick={generateRandomSong} disabled={allSongs.length===0}
-            style={{width:'100%',background:'#16a34a',color:'white',padding:'0.75rem 1.5rem',borderRadius:'0.5rem',fontWeight:'600',fontSize:'1.125rem',border:'none',cursor:'pointer',opacity:allSongs.length===0?0.5:1}}>
+            style={{width:'100%',background:theme.primary,color:'white',padding:'0.75rem 1.5rem',borderRadius:'0.5rem',fontWeight:'600',fontSize:'1.125rem',border:'none',cursor:'pointer',opacity:allSongs.length===0?0.5:1}}>
             Generate Random Song
           </button>
         </div>
 
-        <div style={{background:'white',borderRadius:'0.75rem',boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
-          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:'#166534',marginBottom:'1rem'}}>Request a Song</h2>
+        <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginBottom:'1.5rem'}}>
+          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>Request a Song</h2>
           <input type="text" placeholder="Search songs..." value={searchTerm}
             onChange={(e)=>setSearchTerm(e.target.value)}
-            style={{width:'100%',padding:'0.5rem 1rem',border:'1px solid #d1d5db',borderRadius:'0.5rem',marginBottom:'1rem'}}/>
+            style={{width:'100%',padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',marginBottom:'1rem',background:theme.bg,color:theme.text}}/>
           <div style={{maxHeight:'15rem',overflowY:'auto',marginBottom:'1rem'}}>
             {filteredSongs.slice(0,50).map(song=>(
-              <div key={song.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'#f9fafb',padding:'0.75rem',borderRadius:'0.5rem',marginBottom:'0.5rem'}}>
+              <div key={song.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:theme.bgSecondary,padding:'0.75rem',borderRadius:'0.5rem',marginBottom:'0.5rem'}}>
                 <div>
-                  <div style={{fontWeight:'600',color:'#111827'}}>{song.title}</div>
-                  <div style={{fontSize:'0.875rem',color:'#6b7280'}}>Page {song.page}</div>
+                  <div style={{fontWeight:'600',color:theme.text}}>{song.title}</div>
+                  <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.page}</div>
                 </div>
                 <button onClick={()=>addToQueue(song)}
-                  style={{background:'#16a34a',color:'white',padding:'0.25rem 0.75rem',borderRadius:'0.25rem',display:'flex',alignItems:'center',gap:'0.25rem',border:'none',cursor:'pointer'}}>
+                  style={{background:theme.primary,color:'white',padding:'0.25rem 0.75rem',borderRadius:'0.25rem',display:'flex',alignItems:'center',gap:'0.25rem',border:'none',cursor:'pointer'}}>
                   ➕ Add
                 </button>
               </div>
             ))}
           </div>
-          <div style={{borderTop:'1px solid #e5e7eb',paddingTop:'1rem'}}>
-            <div style={{fontSize:'0.875rem',fontWeight:'600',color:'#374151',marginBottom:'0.5rem'}}>Request unlisted song:</div>
+          <div style={{borderTop:`1px solid ${theme.borderLight}`,paddingTop:'1rem'}}>
+            <div style={{fontSize:'0.875rem',fontWeight:'600',color:theme.text,marginBottom:'0.5rem'}}>Request unlisted song:</div>
             <div style={{display:'flex',gap:'0.5rem'}}>
               <input type="text" placeholder="Enter song title..." value={customSongInput}
                 onChange={(e)=>setCustomSongInput(e.target.value)}
                 onKeyPress={(e)=>e.key==='Enter'&&addCustomSong()}
-                style={{flex:1,padding:'0.5rem 1rem',border:'1px solid #d1d5db',borderRadius:'0.5rem'}}/>
+                style={{flex:1,padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',background:theme.bg,color:theme.text}}/>
               <button onClick={addCustomSong}
                 style={{background:'#2563eb',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer'}}>
                 Add
@@ -392,30 +418,30 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{background:'white',borderRadius:'0.75rem',boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem'}}>
-          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:'#166534',marginBottom:'1rem'}}>Queue ({queue.length} songs)</h2>
+        <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem'}}>
+          <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>Queue ({queue.length} songs)</h2>
           {queue.length===0?(
-            <p style={{color:'#6b7280',textAlign:'center',padding:'2rem'}}>No songs in queue</p>
+            <p style={{color:theme.textSecondary,textAlign:'center',padding:'2rem'}}>No songs in queue</p>
           ):(
             <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
               {queue.map((song,idx)=>(
-                <div key={song.id} style={{display:'flex',alignItems:'center',gap:'0.5rem',background:'#f9fafb',padding:'0.75rem',borderRadius:'0.5rem'}}>
+                <div key={song.id} style={{display:'flex',alignItems:'center',gap:'0.5rem',background:theme.bgSecondary,padding:'0.75rem',borderRadius:'0.5rem'}}>
                   <div style={{display:'flex',flexDirection:'column',gap:'0.25rem'}}>
                     <button onClick={()=>moveInQueue(song,-1)} disabled={idx===0}
-                      style={{padding:'0.25rem',background:'transparent',border:'none',cursor:'pointer',opacity:idx===0?0.3:1}}>
+                      style={{padding:'0.25rem',background:'transparent',border:'none',cursor:'pointer',opacity:idx===0?0.3:1,color:theme.text}}>
                       ▲
                     </button>
                     <button onClick={()=>moveInQueue(song,1)} disabled={idx===queue.length-1}
-                      style={{padding:'0.25rem',background:'transparent',border:'none',cursor:'pointer',opacity:idx===queue.length-1?0.3:1}}>
+                      style={{padding:'0.25rem',background:'transparent',border:'none',cursor:'pointer',opacity:idx===queue.length-1?0.3:1,color:theme.text}}>
                       ▼
                     </button>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:'600',color:'#111827'}}>{song.song_title}</div>
-                    <div style={{fontSize:'0.875rem',color:'#6b7280'}}>Page {song.song_page} • Requested by {song.requester}</div>
+                    <div style={{fontWeight:'600',color:theme.text}}>{song.song_title}</div>
+                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page} • Requested by {song.requester}</div>
                   </div>
                   <button onClick={()=>playSong(song)}
-                    style={{background:'#16a34a',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer'}}>
+                    style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer'}}>
                     Play Now
                   </button>
                   <button onClick={()=>removeFromQueue(song.id)}
@@ -429,18 +455,8 @@ export default function Home() {
         </div>
 
         {sungSongs.length>0&&(
-          <div style={{background:'white',borderRadius:'0.75rem',boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginTop:'1.5rem'}}>
-            <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:'#1f2937',marginBottom:'1rem'}}>Already Sung ({sungSongs.length})</h2>
+          <div style={{background:theme.bg,borderRadius:'0.75rem',boxShadow:isDark?'0 10px 15px -3px rgba(0,0,0,0.5)':'0 10px 15px -3px rgba(0,0,0,0.1)',padding:'1.5rem',marginTop:'1.5rem'}}>
+            <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>Already Sung ({sungSongs.length})</h2>
             <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem'}}>
               {sungSongs.map((song,idx)=>(
-                <span key={idx} style={{background:'#f3f4f6',padding:'0.25rem 0.75rem',borderRadius:'9999px',fontSize:'0.875rem'}}>
-                  {song.title}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                <span key={idx} style={{background:theme.bgSecondary,padding:'
