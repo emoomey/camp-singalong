@@ -282,7 +282,7 @@ export default function Home() {
                 <input type="text" placeholder="Enter room code" value={roomCodeInput}
                   onChange={(e)=>setRoomCodeInput(e.target.value.toUpperCase())}
                   onKeyPress={(e)=>e.key==='Enter'&&joinRoom()}
-                  style={{flex:1,padding:'0.75rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',textTransform:'uppercase',background:theme.bg,color:theme.text,fontSize:'16px'}}
+                  style={{flex:1,padding:'0.75rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',textTransform:'uppercase',background:theme.bg,color:theme.text,fontSize:'1rem'}}
                   maxLength={15}/>
                 <button onClick={joinRoom} disabled={loading||!roomCodeInput}
                   style={{background:'#2563eb',color:'white',padding:'0.75rem 1.5rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer',opacity:(loading||!roomCodeInput)?0.5:1}}>
@@ -425,7 +425,7 @@ export default function Home() {
           <h2 style={{fontSize:'1.25rem',fontWeight:'bold',color:theme.text,marginBottom:'1rem'}}>Request a Song</h2>
           <input type="text" placeholder="Search songs..." value={searchTerm}
             onChange={(e)=>setSearchTerm(e.target.value)}
-            style={{width:'100%',padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',marginBottom:'1rem',background:theme.bg,color:theme.text}}/>
+            style={{width:'100%',padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',marginBottom:'1rem',background:theme.bg,color:theme.text,fontSize:'1rem'}}/>
           <div style={{maxHeight:'15rem',overflowY:'auto',marginBottom:'1rem'}}>
             {filteredSongs.slice(0,50).map(song=>(
               <div key={song.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:theme.bgSecondary,padding:'0.75rem',borderRadius:'0.5rem',marginBottom:'0.5rem'}}>
@@ -446,7 +446,7 @@ export default function Home() {
               <input type="text" placeholder="Enter song title..." value={customSongInput}
                 onChange={(e)=>setCustomSongInput(e.target.value)}
                 onKeyPress={(e)=>e.key==='Enter'&&addCustomSong()}
-                style={{flex:1,padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',background:theme.bg,color:theme.text}}/>
+                style={{flex:1,padding:'0.5rem 1rem',border:`1px solid ${theme.border}`,borderRadius:'0.5rem',background:theme.bg,color:theme.text,fontSize:'1rem'}}/>
               <button onClick={addCustomSong}
                 style={{background:'#2563eb',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer'}}>
                 Add
