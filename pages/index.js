@@ -306,43 +306,45 @@ export default function Home() {
   if (view==='display') {
     return (
       <div style={{minHeight:'100vh',background:theme.bgGradient,color:'white',padding:'0'}}>
-        <button onClick={()=>setView('control')}
-          style={{position:'fixed',top:'1rem',right:'1rem',background:'rgba(255,255,255,0.2)',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.5rem'}}>
-          📱 Switch to Control View
-        </button>
-        <div style={{position:'fixed',top:'1rem',left:'1rem',background:'rgba(255,255,255,0.2)',padding:'0.5rem 1rem',borderRadius:'0.5rem'}}>
-          <div style={{fontSize:'0.875rem',color:'#bbf7d0'}}>Room Code</div>
-          <div style={{fontSize:'1.5rem',fontWeight:'bold'}}>{roomCode}</div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'1rem',flexWrap:'wrap',gap:'0.5rem'}}>
+          <div style={{background:'rgba(255,255,255,0.2)',padding:'0.5rem 1rem',borderRadius:'0.5rem'}}>
+            <div style={{fontSize:'0.75rem',color:'#bbf7d0'}}>Room Code</div>
+            <div style={{fontSize:'1.25rem',fontWeight:'bold'}}>{roomCode}</div>
+          </div>
+          <button onClick={()=>setView('control')}
+            style={{background:'rgba(255,255,255,0.2)',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.875rem'}}>
+            📱 Control View
+          </button>
         </div>
-        <div style={{maxWidth:'96rem',margin:'0 auto'}}>
-          <div style={{textAlign:'center',marginBottom:'3rem'}}>
-            <h1 style={{fontSize:'3.75rem',fontWeight:'bold',marginBottom:'1rem'}}>🎵 Now Singing</h1>
+        <div style={{maxWidth:'96rem',margin:'0 auto',padding:'0 1rem'}}>
+          <div style={{textAlign:'center',marginBottom:'2rem'}}>
+            <h1 style={{fontSize:'clamp(1.5rem, 8vw, 3.75rem)',fontWeight:'bold',marginBottom:'0.5rem'}}>🎵 Now Singing</h1>
             {currentSong?(
               <>
-                <div style={{fontSize:'5rem',fontWeight:'bold',marginBottom:'1rem'}}>{currentSong.title}</div>
-               <div style={{fontSize:'3.75rem',color:'#bbf7d0'}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
+                <div style={{fontSize:'clamp(1.5rem, 10vw, 5rem)',fontWeight:'bold',marginBottom:'0.5rem'}}>{currentSong.title}</div>
+                <div style={{fontSize:'clamp(1.25rem, 6vw, 3.75rem)',color:'#bbf7d0'}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
               </>
             ):(
-              <div style={{fontSize:'3.75rem',color:'#86efac'}}>Pick a song to start!</div>
+              <div style={{fontSize:'clamp(1.25rem, 6vw, 3.75rem)',color:'#86efac'}}>Pick a song to start!</div>
             )}
           </div>
-          <div style={{background:'rgba(255,255,255,0.1)',borderRadius:'1rem',padding:'2rem'}}>
-            <h2 style={{fontSize:'2.25rem',fontWeight:'bold',marginBottom:'1.5rem'}}>👥 Up Next ({queue.length})</h2>
+          <div style={{background:'rgba(255,255,255,0.1)',borderRadius:'1rem',padding:'1rem'}}>
+            <h2 style={{fontSize:'clamp(1.25rem, 4vw, 2.25rem)',fontWeight:'bold',marginBottom:'1rem'}}>👥 Up Next ({queue.length})</h2>
             {queue.length===0?(
-              <p style={{fontSize:'1.875rem',color:'#bbf7d0'}}>No songs in queue yet</p>
+              <p style={{fontSize:'clamp(1rem, 3vw, 1.875rem)',color:'#bbf7d0'}}>No songs in queue yet</p>
             ):(
-              <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+              <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
                 {queue.slice(0,8).map((song,idx)=>(
-                  <div key={song.id} style={{background:'rgba(255,255,255,0.1)',borderRadius:'0.75rem',padding:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div key={song.id} style={{background:'rgba(255,255,255,0.1)',borderRadius:'0.75rem',padding:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                     <div>
-                      <div style={{fontSize:'1.875rem',fontWeight:'600'}}>{idx+1}. {song.song_title}</div>
-                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
-                    <div style={{fontSize:'1.5rem',color:'#86efac'}}>- {song.requester}</div>
-                  </div>
+                      <div style={{fontSize:'clamp(1rem, 3vw, 1.875rem)',fontWeight:'600'}}>{idx+1}. {song.song_title}</div>
+                      <div style={{fontSize:'clamp(0.75rem, 2vw, 1.25rem)',color:'#bbf7d0'}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
+                      <div style={{fontSize:'clamp(0.875rem, 2.5vw, 1.5rem)',color:'#86efac'}}>- {song.requester}</div>
+                    </div>
                   </div>
                 ))}
                 {queue.length>8&&(
-                  <div style={{fontSize:'1.5rem',color:'#86efac',textAlign:'center'}}>+ {queue.length-8} more songs</div>
+                  <div style={{fontSize:'clamp(0.875rem, 2.5vw, 1.5rem)',color:'#86efac',textAlign:'center'}}>+ {queue.length-8} more songs</div>
                 )}
               </div>
             )}
