@@ -90,7 +90,6 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
     setEditingSong(null);
     setIsAddingNew(false);
   };
-
 const saveSong = async () => {
     if (!formTitle.trim()) {
       showMessage('Title is required');
@@ -169,59 +168,6 @@ const saveSong = async () => {
     }
     setSaving(false);
   };
-    setSaving(true);
-    try {
-      if (isAddingNew) {
-        // Create new song
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            title: formTitle.trim(),
-            page: formPage.trim() || null,
-            old_page: formOldPage.trim() || null,
-            section: formSection
-          })
-        });
-        if (response.ok) {
-          showMessage('Song added!');
-          setIsAddingNew(false);
-          await loadSongs();
-        } else {
-          showMessage('Error adding song');
-        }
-      } else {
-        // Update existing song
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            title: formTitle.trim(),
-            page: formPage.trim() || null,
-            old_page: formOldPage.trim() || null,
-            section: formSection
-          })
-        });
-        if (response.ok) {
-          showMessage('Song updated!');
-          setEditingSong(null);
-          await loadSongs();
-        } else {
-          showMessage('Error updating song');
-        }
-      }
-    } catch (error) {
-      console.error('Error saving song:', error);
-      showMessage('Error saving song');
-    }
-    setSaving(false);
-  };
 
   const deleteSong = async () => {
     if (!editingSong) return;
@@ -234,25 +180,6 @@ const saveSong = async () => {
       });
       if (response.ok) {
         await logChange('delete', editingSong, null, null, null, editingSong, null);
-        showMessage('Song deleted');
-        setEditingSong(null);
-        await loadSongs();
-      } else {
-        showMessage('Error deleting song');
-      }
-    } catch (error) {
-      console.error('Error deleting song:', error);
-      showMessage('Error deleting song');
-    }
-    setSaving(false);
-  };
-    setSaving(true);
-    try {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
-      if (response.ok) {
         showMessage('Song deleted');
         setEditingSong(null);
         await loadSongs();
