@@ -185,6 +185,11 @@ export default function Admin() {
               style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>
               ← Back to App
             </a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
+              target="_blank" rel="noopener noreferrer"
+              style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>
+              📝 Feedback
+            </a>
           </div>
         </div>
 
