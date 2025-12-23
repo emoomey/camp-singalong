@@ -292,18 +292,14 @@ export default function Home() {
             </div>
           </div>
         </div>
-           <div style={{marginTop:'1.5rem',textAlign:'center'}}>
-         <a href="/"
-              style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>
-              ← Back to App
-            </a>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
-              target="_blank" rel="noopener noreferrer"
-              style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>
-              📝 Feedback
-            </a>
-          </div>
+         <div style={{position:'fixed',bottom:'1rem',left:'0',right:'0',textAlign:'center'}}>
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
+            target="_blank" rel="noopener noreferrer"
+            style={{color:'#9ca3af',fontSize:'0.875rem',textDecoration:'none'}}>
+            📝 Share Feedback
+          </a>
         </div>
+</div>
     );
   }  
 
