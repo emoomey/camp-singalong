@@ -215,7 +215,7 @@ export default function Admin() {
               <div>
                 <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Section</label>
                 <select value={formSection} onChange={(e) => setFormSection(e.target.value)}
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}>
+                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'16px'}}>
                   {Object.entries(SECTION_INFO).map(([letter, name]) => (
                     <option key={letter} value={letter}>{letter}: {name}</option>
                   ))}
@@ -225,13 +225,13 @@ export default function Admin() {
                 <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Page (new)</label>
                 <input type="text" value={formPage} onChange={(e) => setFormPage(e.target.value)}
                   placeholder="e.g. F-2"
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
+                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'16px'}}/>
               </div>
               <div>
                 <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Old Page</label>
                 <input type="text" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
                   placeholder="e.g. 42"
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
+                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'16px'}}/>
               </div>
             </div>
             <div style={{display:'flex',gap:'0.5rem'}}>
