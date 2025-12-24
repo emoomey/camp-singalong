@@ -306,6 +306,56 @@ const [showLyricsOnTV, setShowLyricsOnTV] = useState(false);
   }  
 
   if (view==='display') {
+    // Check if we're on a small screen (personal device)
+    const isPersonalDevice = typeof window !== 'undefined' && window.innerWidth < 1024;
+    
+    // If showing lyrics on personal device
+    if (showLyrics && currentSong && isPersonalDevice) {
+      return (
+        <div style={{minHeight:'100vh',background:theme.bgGradient,color:'white',display:'flex',flexDirection:'column'}}>
+          {/* Sticky Header */}
+          <div style={{position:'sticky',top:0,background:'rgba(0,0,0,0.8)',padding:'1rem',zIndex:10,borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',maxWidth:'48rem',margin:'0 auto'}}>
+              <button onClick={()=>setShowLyrics(false)}
+                style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                ← Back
+              </button>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:'1.25rem',fontWeight:'bold'}}>{currentSong.title}</div>
+                <div style={{fontSize:'0.875rem',color:'#bbf7d0'}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
+              </div>
+              <div style={{width:'80px'}}></div> {/* Spacer for centering */}
+            </div>
+          </div>
+          
+          {/* Scrollable Lyrics */}
+          <div style={{flex:1,overflowY:'auto',padding:'1.5rem'}}>
+            <div style={{maxWidth:'48rem',margin:'0 auto'}}>
+              <div style={{fontSize:'0.875rem',color:'#86efac',marginBottom:'1rem',textAlign:'center'}}>Now Singing</div>
+              {currentSong.lyrics_text ? (
+                <div style={{fontSize:'1.125rem',lineHeight:'1.8',whiteSpace:'pre-wrap'}}>
+                  {currentSong.lyrics_text}
+                </div>
+              ) : (
+                <div style={{textAlign:'center',color:'#9ca3af',padding:'2rem'}}>
+                  <div style={{fontSize:'3rem',marginBottom:'1rem'}}>📄</div>
+                  <div>No lyrics available for this song</div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Bottom Button */}
+          <div style={{padding:'1rem',background:'rgba(0,0,0,0.8)',borderTop:'1px solid rgba(255,255,255,0.1)'}}>
+            <button onClick={()=>setShowLyrics(false)}
+              style={{width:'100%',maxWidth:'48rem',margin:'0 auto',display:'block',background:theme.primary,color:'white',padding:'0.75rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600'}}>
+              Back to Queue
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div style={{minHeight:'100vh',background:theme.bgGradient,color:'white',padding:'0'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'1rem',flexWrap:'wrap',gap:'0.5rem'}}>
@@ -325,6 +375,23 @@ const [showLyricsOnTV, setShowLyricsOnTV] = useState(false);
               <>
                 <div style={{fontSize:'clamp(1.5rem, 10vw, 5rem)',fontWeight:'bold',marginBottom:'0.5rem'}}>{currentSong.title}</div>
                 <div style={{fontSize:'clamp(1.25rem, 6vw, 3.75rem)',color:'#bbf7d0'}}>Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}</div>
+                
+                {/* Lyrics button for personal devices */}
+                {isPersonalDevice && currentSong.has_lyrics && (
+                  <button onClick={()=>setShowLyrics(true)}
+                    style={{marginTop:'1rem',background:theme.primary,color:'white',padding:'0.75rem 1.5rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600',fontSize:'1rem'}}>
+                    📄 View Lyrics
+                  </button>
+                )}
+                
+                {/* Show lyrics on TV if enabled */}
+                {!isPersonalDevice && showLyricsOnTV && currentSong.lyrics_text && (
+                  <div style={{marginTop:'2rem',textAlign:'left',background:'rgba(255,255,255,0.1)',borderRadius:'1rem',padding:'2rem',maxWidth:'64rem',marginLeft:'auto',marginRight:'auto'}}>
+                    <div style={{fontSize:'clamp(1rem, 3vw, 1.5rem)',lineHeight:'1.8',whiteSpace:'pre-wrap'}}>
+                      {currentSong.lyrics_text}
+                    </div>
+                  </div>
+                )}
               </>
             ):(
               <div style={{fontSize:'clamp(1.25rem, 6vw, 3.75rem)',color:'#86efac'}}>Pick a song to start!</div>
@@ -339,7 +406,10 @@ const [showLyricsOnTV, setShowLyricsOnTV] = useState(false);
                 {queue.slice(0,8).map((song,idx)=>(
                   <div key={song.id} style={{background:'rgba(255,255,255,0.1)',borderRadius:'0.75rem',padding:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                     <div>
-                      <div style={{fontSize:'clamp(1rem, 3vw, 1.875rem)',fontWeight:'600'}}>{idx+1}. {song.song_title}</div>
+                      <div style={{fontSize:'clamp(1rem, 3vw, 1.875rem)',fontWeight:'600'}}>
+                        {idx+1}. {song.song_title}
+                        {song.has_lyrics && <span style={{marginLeft:'0.5rem',fontSize:'0.875rem'}}>📄</span>}
+                      </div>
                       <div style={{fontSize:'clamp(0.75rem, 2vw, 1.25rem)',color:'#bbf7d0'}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
                       <div style={{fontSize:'clamp(0.875rem, 2.5vw, 1.5rem)',color:'#86efac'}}>- {song.requester}</div>
                     </div>
