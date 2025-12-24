@@ -127,6 +127,7 @@ const saveSong = async () => {
   section: formSection,
   lyrics_text: formLyrics.trim() || null,
   has_lyrics: formLyrics.trim().length > 0
+  
 };
 
       if (isAddingNew) {
@@ -298,6 +299,13 @@ const saveSong = async () => {
                   placeholder="e.g. 42"
                   style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem'}}/>
               </div>
+            </div>
+            <div style={{marginBottom:'1rem'}}>
+              <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Lyrics</label>
+              <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)}
+                placeholder="Enter song lyrics..."
+                rows={10}
+                style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem',fontFamily:'inherit',resize:'vertical'}}/>
             </div>
             <div style={{display:'flex',gap:'0.5rem'}}>
               <button onClick={saveSong} disabled={saving}
