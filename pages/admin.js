@@ -94,6 +94,8 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
     setFormOldPage(song.old_page || '');
     setFormSection(song.section || 'A');
     setIsAddingNew(false);
+    setFormLyrics(song.lyrics_text || '');
+setFormHasLyrics(song.has_lyrics || false);
   };
 
   const startAddNew = () => {
@@ -103,6 +105,8 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
     setFormOldPage('');
     setFormSection('A');
     setIsAddingNew(true);
+    setFormLyrics('');
+setFormHasLyrics(false);
   };
 
   const cancelEdit = () => {
@@ -117,11 +121,13 @@ const saveSong = async () => {
     setSaving(true);
     try {
       const newSongData = {
-        title: formTitle.trim(),
-        page: formPage.trim() || null,
-        old_page: formOldPage.trim() || null,
-        section: formSection
-      };
+  title: formTitle.trim(),
+  page: formPage.trim() || null,
+  old_page: formOldPage.trim() || null,
+  section: formSection,
+  lyrics_text: formLyrics.trim() || null,
+  has_lyrics: formLyrics.trim().length > 0
+};
 
       if (isAddingNew) {
         // Create new song
