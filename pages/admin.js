@@ -15,12 +15,12 @@ const SECTION_INFO = {
 
 export default function Admin() {
   const [sessionName, setSessionName] = useState(() => {
-  // This looks in the browser's memory when the page first loads
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('camp_admin_name') || '';
-  }
-  return '';
-});
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('camp_admin_name') || '';
+    }
+    return '';
+  });
+  
   const [allSongs, setAllSongs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSong, setEditingSong] = useState(null);
@@ -28,13 +28,12 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Form fields
   const [formTitle, setFormTitle] = useState('');
   const [formPage, setFormPage] = useState('');
   const [formOldPage, setFormOldPage] = useState('');
   const [formSection, setFormSection] = useState('A');
   const [formLyrics, setFormLyrics] = useState('');
-const [formHasLyrics, setFormHasLyrics] = useState(false);
+  const [formHasLyrics, setFormHasLyrics] = useState(false);
 
   useEffect(() => { loadSongs(); }, []);
 
@@ -52,24 +51,21 @@ const [formHasLyrics, setFormHasLyrics] = useState(false);
     setTimeout(() => setMessage(''), 3000);
   };
 
-const logChange = async (action, song, fieldChanged = null, oldValue = null, newValue = null, fullBefore = null, fullAfter = null) => {
-    console.log("1. logChange triggered:", { action, song_title: song?.title });
+  const logChange = async (action, song, fieldChanged = null, oldValue = null, newValue = null, fullBefore = null, fullAfter = null) => {
     try {
       const payload = {
-          action: action,
-          song_id: song?.id || null,
-          song_title: song?.title || fieldChanged,
-          field_changed: fieldChanged,
-          old_value: oldValue ? String(oldValue) : null,
-          new_value: newValue ? String(newValue) : null,
-          full_song_before: fullBefore,
+        action: action,
+        song_id: song?.id || null,
+        song_title: song?.title || fieldChanged,
+        field_changed: fieldChanged,
+        old_value: oldValue ? String(oldValue) : null,
+        new_value: newValue ? String(newValue) : null,
+        full_song_before: fullBefore,
         full_song_after: fullAfter,
-          changed_by: sessionName || 'unknown'
-        };
-      
-      console.log("2. Payload built:", payload);
+        changed_by: sessionName || 'unknown'
+      };
 
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
@@ -79,20 +75,10 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
         },
         body: JSON.stringify(payload)
       });
-      
-      console.log("3. Response status:", response.status);
-
-      if (!response.ok) {
-        const errorDetail = await response.text();
-        console.error('4. Supabase rejected the insert:', errorDetail);
-      } else {
-        console.log("4. SUCCESS: Change logged to database.");
-      }
     } catch (error) {
-      console.error('CATASTROPHIC ERROR:', error);
+      console.error('Logging Error:', error);
     }
   };
-  
 
   const startEdit = (song) => {
     setEditingSong(song);
@@ -102,7 +88,7 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
     setFormSection(song.section || 'A');
     setIsAddingNew(false);
     setFormLyrics(song.lyrics_text || '');
-setFormHasLyrics(song.has_lyrics || false);
+    setFormHasLyrics(song.has_lyrics || false);
   };
 
   const startAddNew = () => {
@@ -113,20 +99,19 @@ setFormHasLyrics(song.has_lyrics || false);
     setFormSection('A');
     setIsAddingNew(true);
     setFormLyrics('');
-setFormHasLyrics(false);
+    setFormHasLyrics(false);
   };
 
   const cancelEdit = () => {
     setEditingSong(null);
     setIsAddingNew(false);
   };
-const saveSong = async () => {
-    // Check for session name first
+
+  const saveSong = async () => {
     if (!sessionName.trim()) {
       showMessage('❌ Please enter your name at the top of the page before saving.');
       return;
     }
-
     if (!formTitle.trim()) {
       showMessage('Title is required');
       return;
@@ -134,17 +119,15 @@ const saveSong = async () => {
     setSaving(true);
     try {
       const newSongData = {
-  title: formTitle.trim(),
-  page: formPage.trim() || null,
-  old_page: formOldPage.trim() || null,
-  section: formSection,
-  lyrics_text: formLyrics.trim() || null,
-  has_lyrics: formLyrics.trim().length > 0
-  
-};
+        title: formTitle.trim(),
+        page: formPage.trim() || null,
+        old_page: formOldPage.trim() || null,
+        section: formSection,
+        lyrics_text: formLyrics.trim() || null,
+        has_lyrics: formLyrics.trim().length > 0
+      };
 
       if (isAddingNew) {
-        // Create new song
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
           method: 'POST',
           headers: {
@@ -159,27 +142,15 @@ const saveSong = async () => {
           showMessage('Song added!');
           setIsAddingNew(false);
           await loadSongs();
-        } else {
-          showMessage('Error adding song');
         }
       } else {
-        // Log each field that changed
         const oldSong = editingSong;
         const changes = [];
-        if (oldSong.title !== newSongData.title) {
-          changes.push({ field: 'title', old: oldSong.title, new: newSongData.title });
-        }
-        if (oldSong.page !== newSongData.page) {
-          changes.push({ field: 'page', old: oldSong.page, new: newSongData.page });
-        }
-        if (oldSong.old_page !== newSongData.old_page) {
-          changes.push({ field: 'old_page', old: oldSong.old_page, new: newSongData.old_page });
-        }
-        if (oldSong.section !== newSongData.section) {
-          changes.push({ field: 'section', old: oldSong.section, new: newSongData.section });
-        }
+        if (oldSong.title !== newSongData.title) changes.push({ field: 'title', old: oldSong.title, new: newSongData.title });
+        if (oldSong.page !== newSongData.page) changes.push({ field: 'page', old: oldSong.page, new: newSongData.page });
+        if (oldSong.old_page !== newSongData.old_page) changes.push({ field: 'old_page', old: oldSong.old_page, new: newSongData.old_page });
+        if (oldSong.section !== newSongData.section) changes.push({ field: 'section', old: oldSong.section, new: newSongData.section });
 
-        // Update the song
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
           method: 'PATCH',
           headers: {
@@ -190,36 +161,26 @@ const saveSong = async () => {
         });
         if (response.ok) {
           const fullAfter = { ...oldSong, ...newSongData };
-          // Log each change
           for (const change of changes) {
             await logChange('edit', oldSong, change.field, change.old, change.new, oldSong, fullAfter);
           }
           showMessage('Song updated!');
           setEditingSong(null);
           await loadSongs();
-        } else {
-          showMessage('Error updating song');
         }
       }
     } catch (error) {
-      console.error('Error saving song:', error);
-      showMessage('Error saving song');
+      console.error('Error saving:', error);
     }
     setSaving(false);
   };
 
-
-    const deleteSong = async () => {
-    // Add this check:
+  const deleteSong = async () => {
     if (!sessionName.trim()) {
       showMessage('❌ Please enter your name at the top of the page before deleting.');
       return;
     }
-    
-    if (!editingSong) return;
-    // ... rest of your delete code
-    if (!editingSong) return;
-    if (!confirm(`Are you sure you want to delete "${editingSong.title}"?`)) return;
+    if (!editingSong || !confirm(`Are you sure you want to delete "${editingSong.title}"?`)) return;
     setSaving(true);
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
@@ -231,30 +192,22 @@ const saveSong = async () => {
         showMessage('Song deleted');
         setEditingSong(null);
         await loadSongs();
-      } else {
-        showMessage('Error deleting song');
       }
-    } catch (error) {
-      console.error('Error deleting song:', error);
-      showMessage('Error deleting song');
-    }
+    } catch (error) { console.error('Error deleting:', error); }
     setSaving(false);
   };
 
   const filteredSongs = allSongs.filter(song =>
     song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (song.page && song.page.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (song.section && song.section.toLowerCase().includes(searchTerm.toLowerCase()))
+    (song.page && song.page.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Styles
   const theme = {
     bg: '#111827',
     bgSecondary: '#1f2937',
     text: '#f9fafb',
     textSecondary: '#9ca3af',
     primary: '#22c55e',
-    primaryHover: '#16a34a',
     border: '#374151',
     danger: '#dc2626'
   };
@@ -263,181 +216,91 @@ const saveSong = async () => {
     <div style={{minHeight:'100vh',background:theme.bg,color:theme.text,padding:'2rem'}}>
       <div style={{maxWidth:'64rem',margin:'0 auto'}}>
         
-      {/* Header */}
+        {/* Header */}
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
-          {/* ... existing header content ... */}
-        </div>
-
-        {/* --- PASTE STICKY HEADER HERE --- */}
-        <div style={{ 
-          position: 'sticky', 
-          top: '1rem', 
-          zIndex: 100,
-          background: sessionName.trim() ? theme.bgSecondary : '#450a0a', 
-          padding: '1rem', 
-          borderRadius: '0.5rem', 
-          marginBottom: '1.5rem', 
-          border: `1px solid ${sessionName.trim() ? theme.border : '#dc2626'}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
-        }}>
-          <span style={{ fontWeight: 'bold' }}>👤 Your Name:</span>
-          <input 
-            type="text" 
-            placeholder="Enter name to enable saving..." 
-            value={sessionName} 
-            onChange={(e) => {
-              const newName = e.target.value;
-              setSessionName(newName);
-              localStorage.setItem('camp_admin_name', newName); // This is the "Remember Me" part!
-            }}
-            style={{ 
-              flex: 1, 
-              padding: '0.5rem', 
-              borderRadius: '0.25rem', 
-              border: `1px solid ${theme.border}`, 
-              background: theme.bg, 
-              color: theme.text 
-            }} 
-          />
-          {!sessionName.trim() && (
-            <span style={{ color: '#f87171', fontSize: '0.875rem', fontWeight: 'bold' }}>
-              ⚠️ Required to save
-            </span>
-          )}
-        </div>
-
-        {/* Message */}
-        {message && (
-          <div style={{background:theme.primary,color:'white',padding:'0.75rem 1rem',borderRadius:'0.5rem',marginBottom:'1rem'}}>
-            {message}
-          </div>
-        )}
-
-
+          <div>
             <h1 style={{fontSize:'1.875rem',fontWeight:'bold',marginBottom:'0.25rem'}}>🎵 Song Admin</h1>
             <p style={{color:theme.textSecondary}}>{allSongs.length} songs in database</p>
           </div>
           <div style={{display:'flex',gap:'0.5rem'}}>
-            <button onClick={startAddNew}
-              style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600'}}>
-              + Add Song
-            </button>
-           <a href="/"
-              style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>
-              ← Back to App
-            </a>
+            <button onClick={startAddNew} style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600'}}>+ Add Song</button>
+            <a href="/" style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,textDecoration:'none',display:'flex',alignItems:'center'}}>← Back to App</a>
           </div>
         </div>
 
-        {/* Message */}
+        {/* Sticky Name Bar */}
+        <div style={{ 
+          position: 'sticky', top: '1rem', zIndex: 100,
+          background: sessionName.trim() ? theme.bgSecondary : '#450a0a', 
+          padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', 
+          border: `1px solid ${sessionName.trim() ? theme.border : '#dc2626'}`,
+          display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+        }}>
+          <span style={{ fontWeight: 'bold' }}>👤 Your Name:</span>
+          <input 
+            type="text" placeholder="Enter name to enable saving..." value={sessionName} 
+            onChange={(e) => {
+              setSessionName(e.target.value);
+              localStorage.setItem('camp_admin_name', e.target.value);
+            }}
+            style={{ flex: 1, padding: '0.5rem', borderRadius: '0.25rem', border: `1px solid ${theme.border}`, background: theme.bg, color: theme.text }} 
+          />
+          {!sessionName.trim() && <span style={{ color: '#f87171', fontSize: '0.875rem', fontWeight: 'bold' }}>⚠️ Required to save</span>}
+        </div>
+
+        {/* Status Message */}
         {message && (
-          <div style={{background:theme.primary,color:'white',padding:'0.75rem 1rem',borderRadius:'0.5rem',marginBottom:'1rem'}}>
-            {message}
-          </div>
+          <div style={{background:theme.primary,color:'white',padding:'0.75rem 1rem',borderRadius:'0.5rem',marginBottom:'1rem'}}>{message}</div>
         )}
 
-        {/* Edit/Add Form */}
+        {/* Form Section */}
         {(editingSong || isAddingNew) && (
           <div style={{background:theme.bgSecondary,borderRadius:'0.75rem',padding:'1.5rem',marginBottom:'1.5rem',border:`1px solid ${theme.border}`}}>
-            <h2 style={{fontSize:'1.25rem',fontWeight:'bold',marginBottom:'1rem'}}>
-              {isAddingNew ? 'Add New Song' : `Editing: ${editingSong.title}`}
-            </h2>
+            <h2 style={{fontSize:'1.25rem',fontWeight:'bold',marginBottom:'1rem'}}>{isAddingNew ? 'Add New Song' : `Editing: ${editingSong.title}`}</h2>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
               <div>
                 <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Title *</label>
-                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize: '1rem'}}/>
+                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
               </div>
               <div>
                 <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Section</label>
-                <select value={formSection} onChange={(e) => setFormSection(e.target.value)}
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem'}}>
-                  {Object.entries(SECTION_INFO).map(([letter, name]) => (
-                    <option key={letter} value={letter}>{letter}: {name}</option>
-                  ))}
+                <select value={formSection} onChange={(e) => setFormSection(e.target.value)} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}>
+                  {Object.entries(SECTION_INFO).map(([letter, name]) => <option key={letter} value={letter}>{letter}: {name}</option>)}
                 </select>
               </div>
-              <div>
-                <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Page (new)</label>
-                <input type="text" value={formPage} onChange={(e) => setFormPage(e.target.value)}
-                  placeholder="e.g. F-2"
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem'}}/>
-              </div>
-              <div>
-                <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Old Page</label>
-                <input type="text" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
-                  placeholder="e.g. 42"
-                  style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem'}}/>
-              </div>
+              <input type="text" placeholder="Page (new)" value={formPage} onChange={(e) => setFormPage(e.target.value)} style={{padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
+              <input type="text" placeholder="Old Page" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)} style={{padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
             </div>
-            <div style={{marginBottom:'1rem'}}>
-              <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Lyrics</label>
-              <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)}
-                placeholder="Enter song lyrics..."
-                rows={10}
-                style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,fontSize:'1rem',fontFamily:'inherit',resize:'vertical'}}/>
-            </div>
+            <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)} placeholder="Lyrics..." rows={10} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,marginBottom:'1rem'}}/>
             <div style={{display:'flex',gap:'0.5rem'}}>
-              <button onClick={saveSong} disabled={saving}
-                style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',fontWeight:'600',opacity:saving?0.5:1}}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-              <button onClick={cancelEdit}
-                style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,cursor:'pointer'}}>
-                Cancel
-              </button>
-              {editingSong && (
-                <button onClick={deleteSong} disabled={saving}
-                  style={{background:theme.danger,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',cursor:'pointer',marginLeft:'auto',opacity:saving?0.5:1}}>
-                  Delete
-                </button>
-              )}
+              <button onClick={saveSong} disabled={saving} style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',fontWeight:'600'}}>{saving ? 'Saving...' : 'Save'}</button>
+              <button onClick={cancelEdit} style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`}}>Cancel</button>
+              {editingSong && <button onClick={deleteSong} style={{background:theme.danger,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',marginLeft:'auto'}}>Delete</button>}
             </div>
           </div>
         )}
 
-        {/* Search */}
-        <div style={{marginBottom:'1rem'}}>
-          <input type="text" placeholder="Search songs by title, page, or section..."
-            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            style={{width:'100%',padding:'0.75rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,background:theme.bgSecondary,color:theme.text,fontSize:'1rem'}}/>
-        </div>
-
-      {/* Song List */}
+        {/* List Section */}
+        <input type="text" placeholder="Search songs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{width:'100%',padding:'0.75rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`,background:theme.bgSecondary,color:theme.text,marginBottom:'1rem'}}/>
+        
         <div style={{background:theme.bgSecondary,borderRadius:'0.75rem',border:`1px solid ${theme.border}`,overflow:'hidden',marginBottom:'3rem'}}>
           <div style={{maxHeight:'60vh',overflowY:'auto'}}>
             {filteredSongs.map(song => (
-              <div key={song.id} onClick={() => startEdit(song)}
-                style={{padding:'0.75rem 1rem',borderBottom:`1px solid ${theme.border}`,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',
-                  background: editingSong?.id === song.id ? theme.bg : 'transparent'}}>
+              <div key={song.id} onClick={() => startEdit(song)} style={{padding:'0.75rem 1rem',borderBottom:`1px solid ${theme.border}`,cursor:'pointer',display:'flex',justifyContent:'space-between',background: editingSong?.id === song.id ? theme.bg : 'transparent'}}>
                 <div>
                   <div style={{fontWeight:'500'}}>{song.title}</div>
-                  <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>
-                    Section {song.section} • Page {song.page}{song.old_page ? ` (${song.old_page})` : ''}
-                  </div>
+                  <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Section {song.section} • Page {song.page}</div>
                 </div>
-                <div style={{color:theme.textSecondary,fontSize:'0.875rem'}}>
-                  Click to edit
-                </div>
+                <div style={{color:theme.textSecondary,fontSize:'0.875rem'}}>Edit</div>
               </div>
             ))}
           </div>
         </div>
 
- {/* Results count */}
-        <div style={{marginTop:'0.5rem',color:theme.textSecondary,fontSize:'0.875rem'}}>
-          Showing {filteredSongs.length} of {allSongs.length} songs
-        </div>
+        <div style={{marginTop:'0.5rem',color:theme.textSecondary,fontSize:'0.875rem'}}>Showing {filteredSongs.length} of {allSongs.length} songs</div>
 
-    <div style={{position:'fixed',bottom:'1rem',left:'0',right:'0',textAlign:'center',background:'#111827',paddingTop:'0.5rem'}}>
-          <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
-            target="_blank" rel="noopener noreferrer"
-            style={{color:'#9ca3af',fontSize:'0.875rem',textDecoration:'none'}}>
-            📝 Share Feedback
-          </a>
+        <div style={{position:'fixed',bottom:'1rem',left:'0',right:'0',textAlign:'center',background:theme.bg,paddingTop:'0.5rem'}}>
+          <a href="https://docs.google.com/forms/..." target="_blank" rel="noopener noreferrer" style={{color:'#9ca3af',fontSize:'0.875rem',textDecoration:'none'}}>📝 Share Feedback</a>
         </div>
       </div>
     </div>
