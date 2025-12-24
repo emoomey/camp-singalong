@@ -553,7 +553,7 @@ if (showLyrics && currentSong) {
           {queue.length===0?(
             <p style={{color:theme.textSecondary,textAlign:'center',padding:'2rem'}}>No songs in queue</p>
           ):(
-            <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
               {queue.map((song,idx)=>(
                 <div key={song.id} style={{display:'flex',alignItems:'center',gap:'0.5rem',background:theme.bgSecondary,padding:'0.75rem',borderRadius:'0.5rem'}}>
                   <div style={{display:'flex',flexDirection:'column',gap:'0.25rem'}}>
@@ -567,8 +567,11 @@ if (showLyrics && currentSong) {
                     </button>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:'600',color:theme.text}}>{song.song_title}</div>
-                  <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
+                    <div style={{fontWeight:'600',color:theme.text}}>
+                      {song.song_title}
+                      {song.has_lyrics && <span style={{marginLeft:'0.5rem',fontSize:'0.75rem'}} title="Lyrics available">📄</span>}
+                    </div>
+                    <div style={{fontSize:'0.875rem',color:theme.textSecondary}}>Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}</div>
                   </div>
                   <button onClick={()=>playSong(song)}
                     style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',fontWeight:'600',border:'none',cursor:'pointer'}}>
