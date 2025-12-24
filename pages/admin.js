@@ -44,7 +44,22 @@ export default function Admin() {
   };
 
 const logChange = async (action, song, fieldChanged = null, oldValue = null, newValue = null, fullBefore = null, fullAfter = null) => {
+    console.log("1. logChange triggered:", { action, song_title: song?.title });
     try {
+      const payload = {
+          action: action,
+          song_id: song?.id || null,
+          song_title: song?.title || fieldChanged,
+          field_changed: fieldChanged,
+          old_value: oldValue ? String(oldValue) : null,
+          new_value: newValue ? String(newValue) : null,
+          full_song_before: fullBefore,
+          full_song_after: fullAfter,
+          changed_by: 'admin'
+        };
+      
+      console.log("2. Payload built:", payload);
+
       const response = await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
         method: 'POST',
         headers: {
@@ -53,25 +68,22 @@ const logChange = async (action, song, fieldChanged = null, oldValue = null, new
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify({
-          action: action,
-          song_id: song?.id || null,
-          song_title: song?.title || fieldChanged,
-          field_changed: fieldChanged,
-          old_value: oldValue,
-          new_value: newValue,
-          full_song_before: fullBefore,
-          full_song_after: fullAfter,
-          changed_by: 'admin'
-        })
+        body: JSON.stringify(payload)
       });
+      
+      console.log("3. Response status:", response.status);
+
       if (!response.ok) {
-        console.error('Failed to log change:', response.status, await response.text());
+        const errorDetail = await response.text();
+        console.error('4. Supabase rejected the insert:', errorDetail);
+      } else {
+        console.log("4. SUCCESS: Change logged to database.");
       }
     } catch (error) {
-      console.error('Error logging change:', error);
+      console.error('CATASTROPHIC ERROR:', error);
     }
   };
+  
 
   const startEdit = (song) => {
     setEditingSong(song);
