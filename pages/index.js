@@ -50,6 +50,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+const [showLyricsOnTV, setShowLyricsOnTV] = useState(false);
 
   useEffect(() => {
     // Detect dark mode
