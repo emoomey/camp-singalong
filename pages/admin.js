@@ -26,6 +26,8 @@ export default function Admin() {
   const [formPage, setFormPage] = useState('');
   const [formOldPage, setFormOldPage] = useState('');
   const [formSection, setFormSection] = useState('A');
+  const [formLyrics, setFormLyrics] = useState('');
+const [formHasLyrics, setFormHasLyrics] = useState(false);
 
   useEffect(() => { loadSongs(); }, []);
 
