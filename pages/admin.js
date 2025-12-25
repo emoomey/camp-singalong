@@ -212,15 +212,14 @@ export default function Admin() {
     danger: '#dc2626'
   };
 
-  
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50 selection:bg-green-500/30">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8 pb-32">
         
-        {/* Header Section */}
+        {/* 1. Header Section */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black flex items-center gap-3">
+            <h1 className="text-3xl md:text-4xl font-black flex items-center gap-3 text-white">
               <span className="text-green-500">🎵</span> Song Admin
             </h1>
             <p className="text-slate-400 mt-1 font-medium">
@@ -243,9 +242,9 @@ export default function Admin() {
           </div>
         </header>
 
-        {/* Sticky Name Bar - Accessible Version */}
+        {/* 2. Sticky Name Bar */}
         <section 
-          className={`sticky top-4 z-50 p-4 rounded-xl mb-8 border transition-all duration-300 shadow-2xl flex flex-col sm:flex-row items-center gap-4 ${
+          className={`sticky top-4 z-40 p-4 rounded-xl mb-8 border transition-all duration-300 shadow-2xl flex flex-col sm:flex-row items-center gap-4 ${
             sessionName.trim() 
               ? 'bg-slate-800/95 backdrop-blur border-slate-700 shadow-black/50' 
               : 'bg-red-950/90 backdrop-blur border-red-500 shadow-red-900/20'
@@ -272,123 +271,136 @@ export default function Admin() {
           )}
         </section>
 
-        {/* Status Message - Toast style */}
+        {/* 3. Status Message */}
         {message && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 border border-green-400 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 border border-green-400 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <span>✅</span> {message}
           </div>
         )}
 
-        {/* Add/Edit Form Section */}
+        {/* 4. Add/Edit Form Section */}
         {(editingSong || isAddingNew) && (
-          <div className="bg-slate-800 border-2 border-green-500/30 rounded-2xl p-6 mb-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-slate-800 border-2 border-green-500/30 rounded-2xl p-6 mb-12 shadow-2xl animate-in zoom-in-95 duration-200 relative z-30">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black flex items-center gap-2">
+              <h2 className="text-xl font-black text-white flex items-center gap-2">
                 {isAddingNew ? '✨ Add New Song' : `✏️ Editing: ${editingSong.title}`}
               </h2>
-              <button onClick={cancelEdit} className="text-slate-400 hover:text-white transition-colors">
-                ✕ Close
-              </button>
+              <button onClick={cancelEdit} className="text-slate-400 hover:text-white transition-colors p-2">✕</button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Title Field */}
               <div className="md:col-span-2">
-                <label htmlFor="formTitle" className="block text-sm font-bold text-slate-400 mb-2">Song Title *</label>
-                <input 
-                  id="formTitle"
-                  type="text" 
-                  value={formTitle} 
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all"
-                />
+                <label className="block text-sm font-bold text-slate-400 mb-2">Song Title *</label>
+                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none transition-all" />
               </div>
 
-              {/* Section Select */}
               <div>
-                <label htmlFor="formSection" className="block text-sm font-bold text-slate-400 mb-2">Category Section</label>
-                <select 
-                  id="formSection"
-                  value={formSection} 
-                  onChange={(e) => setFormSection(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all cursor-pointer"
-                >
+                <label className="block text-sm font-bold text-slate-400 mb-2">Category Section</label>
+                <select value={formSection} onChange={(e) => setFormSection(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none transition-all cursor-pointer">
                   {Object.entries(SECTION_INFO).map(([letter, name]) => (
                     <option key={letter} value={letter}>{letter}: {name}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Page Numbers Group */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="formPage" className="block text-sm font-bold text-slate-400 mb-2">New Page</label>
-                  <input id="formPage" type="text" placeholder="F-2" value={formPage} onChange={(e) => setFormPage(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 outline-none" />
+                  <label className="block text-sm font-bold text-slate-400 mb-2">New Page</label>
+                  <input type="text" placeholder="F-2" value={formPage} onChange={(e) => setFormPage(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none" />
                 </div>
                 <div>
-                  <label htmlFor="formOldPage" className="block text-sm font-bold text-slate-400 mb-2">Old Page</label>
-                  <input id="formOldPage" type="text" placeholder="42" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 outline-none" />
+                  <label className="block text-sm font-bold text-slate-400 mb-2">Old Page</label>
+                  <input type="text" placeholder="42" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none" />
                 </div>
               </div>
 
-              {/* Lyrics Textarea */}
               <div className="md:col-span-2">
-                <label htmlFor="formLyrics" className="block text-sm font-bold text-slate-400 mb-2">Lyrics Content</label>
-                <textarea 
-                  id="formLyrics"
-                  value={formLyrics} 
-                  onChange={(e) => setFormLyrics(e.target.value)}
-                  placeholder="Paste lyrics here..."
-                  rows={8}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all font-mono text-sm leading-relaxed"
-                />
+                <label className="block text-sm font-bold text-slate-400 mb-2">Lyrics Content</label>
+                <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)} rows={8}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none font-mono text-sm" />
               </div>
             </div>
 
-            {/* Form Actions */}
             <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-slate-700">
-              <button 
-                onClick={saveSong} 
-                disabled={saving}
-                className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-black transition-all shadow-lg shadow-green-900/40"
-              >
-                {saving ? 'Saving...' : 'SAVE CHANGES'}
-              </button>
-              <button 
-                onClick={cancelEdit}
-                className="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold transition-all"
-              >
-                Cancel
-              </button>
-              
+              <button onClick={saveSong} disabled={saving} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-black shadow-lg shadow-green-900/40">{saving ? 'Saving...' : 'SAVE CHANGES'}</button>
+              <button onClick={cancelEdit} className="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold">Cancel</button>
               {editingSong && (
-                <button 
-                  onClick={deleteSong} 
-                  disabled={saving}
-                  className="w-full md:w-auto md:ml-auto bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-6 py-3 rounded-xl font-bold transition-all border border-red-900/50"
-                >
-                  Delete Song
-                </button>
+                <button onClick={deleteSong} disabled={saving} className="w-full md:w-auto md:ml-auto bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-6 py-3 rounded-xl font-bold border border-red-900/50">Delete Song</button>
               )}
             </div>
           </div>
         )}
 
-        {/* Footer / Feedback */}
+        {/* 5. Search & Song List */}
+        <div className="mb-6 space-y-2">
+          <div className="relative group">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Search by title, page, or section..."
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white focus:bg-slate-800 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all shadow-inner"
+            />
+          </div>
+          <div className="flex justify-between items-center px-2">
+            <p className="text-sm text-slate-400 font-medium">
+              Showing <span className="text-green-400 font-bold">{filteredSongs.length}</span> of {allSongs.length} songs
+            </p>
+            {searchTerm && <button onClick={() => setSearchTerm('')} className="text-sm text-green-500 hover:text-green-400 font-bold">Clear Search</button>}
+          </div>
+        </div>
+
+        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden backdrop-blur-sm shadow-xl mb-12">
+          <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden">
+            {filteredSongs.length > 0 ? (
+              <div className="divide-y divide-slate-700/50">
+                {filteredSongs.map(song => (
+                  <button 
+                    key={song.id} 
+                    onClick={() => startEdit(song)}
+                    className={`w-full text-left p-4 sm:px-6 transition-all flex items-center justify-between group hover:bg-slate-700/40 outline-none focus:bg-slate-700/60 ${
+                      editingSong?.id === song.id ? 'bg-green-500/10 border-l-4 border-l-green-500' : 'border-l-4 border-l-transparent'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-100 group-hover:text-white transition-colors truncate text-lg">
+                        {song.title}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-black bg-slate-700 text-slate-300">Sec {song.section}</span>
+                        <span className="text-sm text-slate-400">Page {song.page || '—'} {song.old_page && <span className="text-slate-500 text-xs">(Old: {song.old_page})</span>}</span>
+                        {song.has_lyrics && (
+                          <span className="text-xs text-green-500 font-bold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Lyrics
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
+                      <span className="bg-slate-700 text-slate-300 px-3 py-1 rounded-md text-xs font-bold border border-slate-600">EDIT ✏️</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-16 text-center text-slate-500">No matches found.</div>
+            )}
+          </div>
+        </div>
+
+        {/* 6. Footer */}
         <footer className="mt-20 mb-10 text-center border-t border-slate-800 pt-8">
-          <a 
-            href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-slate-500 hover:text-green-400 transition-colors font-medium text-sm"
-          >
+          <a href="https://docs.google.com/forms/..." target="_blank" rel="noopener noreferrer" 
+            className="inline-flex items-center gap-2 text-slate-500 hover:text-green-400 transition-colors font-medium text-sm">
             <span>📝</span> Have feedback? Share it with the team
           </a>
         </footer>
-
-      </div> {/* End of Max-Width Container */}
-    </div> // End of Main Background
+      </div>
+    </div>
   );
 }
