@@ -482,247 +482,138 @@ export default function Home() {
     );
   }
 
-  // Control View
+ // Control View
   return (
-    <div className={`min-h-screen p-2 sm:p-4 ${isDark ? 'bg-slate-900' : 'bg-gradient-to-br from-green-50 to-blue-50'}`}>
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+    <div className={`min-h-screen p-2 sm:p-4 ${isDark ? 'bg-slate-900 text-white' : 'bg-green-50 text-slate-900'}`}>
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-20">
 
         {/* Header Card */}
         <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h1 className={`text-xl sm:text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               🎵 Camp Singalong
             </h1>
             <button
               onClick={() => setView('display')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 font-semibold transition-colors
-                ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
+              className="w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors"
             >
               📺 Display View
             </button>
           </div>
 
           {/* Room Code */}
-          <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 sm:p-4 rounded-lg border
-            ${isDark ? 'bg-green-900/30 border-green-800' : 'bg-green-50 border-green-200'}`}>
-            <div className="flex-1">
-              <div className={`text-sm font-semibold ${isDark ? 'text-green-300' : 'text-green-700'}`}>Room Code</div>
-              <div className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{roomCode}</div>
+          <div className={`flex flex-col sm:flex-row items-center gap-3 p-3 sm:p-4 rounded-lg border ${isDark ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200'}`}>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="text-xs font-bold uppercase tracking-widest opacity-60">Room Code</div>
+              <div className="text-2xl font-black">{roomCode}</div>
             </div>
             <button
               onClick={copyRoomCode}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors
-                ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
+              className="w-full sm:w-auto px-6 py-2 rounded-lg font-bold bg-green-600 text-white hover:bg-green-500"
             >
-              {copied ? '✓ Copied!' : '📋 Copy'}
+              {copied ? '✓ Copied' : '📋 Copy'}
             </button>
-          </div>
-
-          {/* Now Singing */}
-          {currentSong && (
-            <div className={`mt-4 p-4 rounded-lg border-2
-              ${isDark ? 'bg-green-900/30 border-green-700' : 'bg-green-50 border-green-300'}`}>
-              <div className={`text-sm font-semibold mb-1 ${isDark ? 'text-green-300' : 'text-green-700'}`}>NOW SINGING</div>
-              <div className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{currentSong.title}</div>
-              <div className={`text-base sm:text-lg ${isDark ? 'text-green-300' : 'text-green-700'}`}>
-                Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}
-              </div>
-              {currentSong.has_lyrics && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => setShowLyricsOnTV(!showLyricsOnTV)}
-                    className={`px-4 py-2 rounded-lg text-sm transition-colors border
-                      ${showLyricsOnTV
-                        ? (isDark ? 'bg-green-600 text-white border-green-600' : 'bg-green-600 text-white border-green-600')
-                        : (isDark ? 'bg-gray-800 text-gray-100 border-gray-600' : 'bg-gray-100 text-gray-900 border-gray-300')
-                      }`}
-                  >
-                    {showLyricsOnTV ? '📄 Lyrics on TV: ON' : '📄 Lyrics on TV: OFF'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Random Song Generator */}
-        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <h2 className={`text-lg sm:text-xl font-bold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            🎲 Random Song Generator
-          </h2>
-
-          <button
-            onClick={() => setShowSectionFilter(!showSectionFilter)}
-            className={`w-full p-3 rounded-lg mb-4 border text-left transition-colors
-              ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100 hover:bg-gray-700' : 'bg-gray-50 border-gray-300 text-gray-900 hover:bg-gray-100'}`}
-          >
-            Filter Sections ({selectedSections.length} selected)
-          </button>
-
-          {showSectionFilter && (
-            <div className={`mb-4 p-3 sm:p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={() => setSelectedSections(Object.keys(SECTION_INFO))}
-                  className={`flex-1 py-2 rounded text-sm font-medium transition-colors
-                    ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={() => setSelectedSections([])}
-                  className={`flex-1 py-2 rounded text-sm font-medium transition-colors
-                    ${isDark ? 'bg-gray-600 hover:bg-gray-500 text-gray-100' : 'bg-gray-300 hover:bg-gray-400 text-gray-900'}`}
-                >
-                  Clear All
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                {Object.entries(SECTION_INFO).map(([letter, name]) => (
-                  <label key={letter} className={`flex items-center gap-2 text-sm cursor-pointer ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedSections.includes(letter)}
-                      onChange={() => toggleSection(letter)}
-                      className="w-4 h-4 flex-shrink-0"
-                    />
-                    <span>{letter}: {name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={generateRandomSong}
-            disabled={allSongs.length === 0}
-            className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-lg transition-colors
-              ${allSongs.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}
-              ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
-          >
-            Generate Random Song
-          </button>
-        </div>
-
-
-{/* Request a Song Section */}
-        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-green-100'}`}>
-          <h2 className={`text-lg sm:text-xl font-bold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            Request a Song
-          </h2>
-
-          <input
-            type="text"
-            placeholder="Search by title, page, or section..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full px-4 py-3 rounded-lg mb-4 border text-base transition-all
-              ${isDark ? 'bg-slate-800 border-slate-700 text-gray-100 focus:border-green-500' : 'bg-white border-gray-300 text-gray-900 focus:border-green-500'}
-              focus:outline-none focus:ring-2 focus:ring-green-500/20`}
-          />
-
-          <div className="max-h-80 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
-            {filteredSongs.slice(0, 50).map(song => (
-              <div key={song.id} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${
-                isDark 
-                  ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-800' 
-                  : 'bg-white border-green-100 hover:bg-green-50/50 shadow-sm'
-              }`}>
-                <div className="min-w-0 flex-1">
-                  <div className={`font-bold truncate text-lg ${isDark ? 'text-white' : 'text-green-900'}`}>
-                    {song.title}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      isDark ? 'bg-slate-700 text-slate-300' : 'bg-green-100 text-green-700'
-                    }`}>
-                      Sec {song.section}
-                    </span>
-                    <span className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-green-600'}`}>
-                      Page {song.page || '—'} {song.old_page && <span className="opacity-60 text-xs">({song.old_page})</span>}
-                    </span>
-                    {song.has_lyrics && (
-                      <span className="text-[10px] font-bold text-green-500 flex items-center gap-1 uppercase tracking-tighter">
-                        <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span> Lyrics
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => addToQueue(song)}
-                  className="ml-4 shrink-0 bg-green-600 hover:bg-green-500 text-white p-3 rounded-xl font-bold transition-all active:scale-90 shadow-lg shadow-green-900/20"
-                >
-                  ➕
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className={`border-t pt-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-            <div className={`text-sm font-semibold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-              Request unlisted song:
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Enter song title..."
-                value={customSongInput}
-                onChange={(e) => setCustomSongInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addCustomSong()}
-                className={`flex-1 px-4 py-2 rounded-lg border text-base
-                  ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'}
-                  focus:outline-none focus:ring-2 focus:ring-green-500`}
-              />
-              <button
-                onClick={addCustomSong}
-                className="px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-              >
-                Add
-              </button>
-            </div>
           </div>
         </div>
 
         {/* Queue Section */}
         <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <h2 className={`text-lg sm:text-xl font-bold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            Queue ({queue.length} songs)
+          <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+            👥 Up Next <span className="text-sm font-normal opacity-60">({queue.length} songs)</span>
           </h2>
 
           {queue.length === 0 ? (
-            <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              No songs in queue
-            </p>
+            <p className="text-center py-8 opacity-50">No songs in queue</p>
           ) : (
             <div className="space-y-2">
-              {queue.map((song, idx) => (
-                <div key={song.id} className={`flex items-center gap-2 sm:gap-3 p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+              {queue.map((song) => (
+                <div key={song.id} className={`flex items-center gap-3 p-3 rounded-lg border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="flex flex-col gap-1">
-                    <button onClick={() => moveInQueue(song, -1)} className="p-1 hover:bg-gray-700 rounded text-xs">▲</button>
-                    <button onClick={() => moveInQueue(song, 1)} className="p-1 hover:bg-gray-700 rounded text-xs">▼</button>
+                    <button onClick={() => moveInQueue(song, -1)} className="p-1 hover:bg-green-500/20 rounded text-xs">▲</button>
+                    <button onClick={() => moveInQueue(song, 1)} className="p-1 hover:bg-green-500/20 rounded text-xs">▼</button>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className={`font-semibold truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{song.song_title}</div>
-                    <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Page {song.song_page}</div>
+                    <div className="font-bold truncate flex items-center gap-2">
+                      {song.song_title}
+                      {song.has_lyrics && <span title="Lyrics Available">📄</span>}
+                    </div>
+                    <div className="text-xs opacity-70">Page {song.song_page} • {song.requester}</div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2">
                     <button
                       onClick={() => playSong(song)}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-bold"
                     >
                       Play
                     </button>
                     <button
                       onClick={() => removeFromQueue(song.id)}
-                      className="px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-600 rounded text-sm font-medium transition-colors"
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove"
                     >
-                      Remove
+                      🗑️
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* History / Already Sung */}
+        {sungSongs.length > 0 && (
+          <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+            <h2 className="text-lg sm:text-xl font-bold mb-4 opacity-70">📜 Recently Sung</h2>
+            <div className="flex flex-wrap gap-2">
+              {sungSongs.slice().reverse().map((song, i) => (
+                <div key={i} className={`px-3 py-1 rounded-full text-xs font-medium border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-100 border-gray-200'}`}>
+                  {song.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Request a Song */}
+        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+          <h2 className="text-lg sm:text-xl font-bold mb-4">Add to Queue</h2>
+          <input
+            type="text"
+            placeholder="Search by title, page, or section..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`w-full px-4 py-3 rounded-xl mb-4 border focus:ring-2 focus:ring-green-500 outline-none ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+          />
+          <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
+            {filteredSongs.slice(0, 50).map(song => (
+              <div key={song.id} className={`flex justify-between items-center p-3 rounded-lg border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold truncate">{song.title} {song.has_lyrics && '📄'}</div>
+                  <div className="text-xs opacity-60 text-green-600 font-bold uppercase">Section {song.section} • Page {song.page}</div>
+                </div>
+                <button
+                  onClick={() => addToQueue(song)}
+                  className="ml-3 p-2 bg-green-600 text-white rounded-lg hover:bg-green-500"
+                >
+                  ➕
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          <div className="border-t pt-4">
+            <p className="text-sm font-bold mb-2 opacity-70">Unlisted Song:</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Song Title..."
+                value={customSongInput}
+                onChange={(e) => setCustomSongInput(e.target.value)}
+                className={`flex-1 px-3 py-2 rounded-lg border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+              />
+              <button onClick={addCustomSong} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold">Add</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
