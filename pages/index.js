@@ -249,66 +249,72 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredSongs = allSongs.filter(song =>
-    song.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSongs = allSongs.filter(song => {
+  const searchLower = searchTerm.toLowerCase().trim();
+  if (!searchLower) return true;
+
+  const matchesTitle = song.title.toLowerCase().includes(searchLower);
+  const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
+                      (song.old_page && song.old_page.toLowerCase().includes(searchLower));
+  
+  const sectionName = SECTION_INFO[song.section] || "";
+  const matchesSection = song.section?.toLowerCase() === searchLower || 
+                         sectionName.toLowerCase().includes(searchLower);
+
+  return matchesTitle || matchesPage || matchesSection;
+});
 
   // Landing Page - No Room Code
+
+  
+// Landing Page - No Room Code
   if (!roomCode) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-green-900 via-green-700 to-green-900'}`}>
-        <div className={`rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <div className="text-center mb-8">
-            <div className="text-5xl sm:text-6xl mb-4">🎵</div>
-            <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-              Camp Singalong
+      <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-green-50'}`}>
+        <div className={`shadow-2xl rounded-3xl p-8 w-full max-w-md border animate-in fade-in zoom-in duration-500 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-green-100'}`}>
+          <div className="text-center mb-10">
+            <div className="text-6xl mb-4 drop-shadow-lg">🎵</div>
+            <h1 className={`text-4xl font-black tracking-tight ${isDark ? 'text-white' : 'text-green-900'}`}>
+              Camp <span className="text-green-600">Singalong</span>
             </h1>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Start or join a singalong session
+            <p className={`mt-2 font-medium ${isDark ? 'text-slate-400' : 'text-green-700/70'}`}>
+              Ready to lead the choir?
             </p>
           </div>
 
-          <div className="flex flex-col gap-6">
+          <div className="space-y-6">
             <button
               onClick={createRoom}
               disabled={loading}
-              className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-lg text-white transition-all
-                ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}
-                ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'}`}
+              className="w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-2xl font-black text-xl transition-all active:scale-[0.98] shadow-xl shadow-green-900/20 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create New Room'}
+              {loading ? 'Creating...' : 'Start New Room'}
             </button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className={`w-full border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className={`px-4 ${isDark ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>OR</span>
-              </div>
+            <div className="relative flex items-center py-2">
+              <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-green-100'}`}></div>
+              <span className={`flex-shrink mx-4 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-green-300'}`}>OR JOIN ROOM</span>
+              <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-green-100'}`}></div>
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                Join Existing Room
-              </label>
+            <div className="space-y-3">
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Enter room code"
+                  placeholder="CODE"
                   value={roomCodeInput}
                   onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                   onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
-                  maxLength={15}
-                  className={`flex-1 px-4 py-3 rounded-lg uppercase text-base
-                    ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'}
-                    border focus:outline-none focus:ring-2 focus:ring-green-500`}
+                  className={`flex-1 border-2 rounded-2xl px-4 py-3 text-xl font-black tracking-widest transition-all outline-none focus:ring-4 focus:ring-green-500/10 ${
+                    isDark 
+                      ? 'bg-slate-950 border-slate-800 text-white focus:border-green-500 placeholder:text-slate-800' 
+                      : 'bg-green-50 border-green-100 text-green-900 focus:border-green-500 placeholder:text-green-200'
+                  }`}
                 />
                 <button
                   onClick={joinRoom}
                   disabled={loading || !roomCodeInput}
-                  className={`px-6 py-3 rounded-lg font-semibold text-white bg-blue-600
-                    ${loading || !roomCodeInput ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700 cursor-pointer'}`}
+                  className="px-6 py-3 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/20"
                 >
                   Join
                 </button>
@@ -317,12 +323,12 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="fixed bottom-4 left-0 right-0 text-center">
+        <div className="fixed bottom-6 left-0 right-0 text-center">
           <a
             href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 text-sm hover:text-gray-300 transition-colors"
+            className="text-slate-500 hover:text-green-500 text-sm font-medium transition-colors"
           >
             📝 Share Feedback
           </a>
@@ -330,6 +336,8 @@ export default function Home() {
       </div>
     );
   }
+
+
 
   // Display View - Full Screen Lyrics
   if (view === 'display' && showLyrics && currentSong) {
