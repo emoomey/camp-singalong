@@ -313,27 +313,57 @@ export default function Home() {
   }
 
   // Display View - Full Screen Lyrics
-  if (view === 'display' && showLyrics && currentSong) {
-    return (
-      <div className={`min-h-screen flex flex-col ${isDark ? 'bg-slate-900' : 'bg-green-900'} text-white`}>
-        <div className="sticky top-0 bg-black/80 backdrop-blur p-4 z-10 border-b border-white/10">
-          <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <button onClick={() => setShowLyrics(false)} className="bg-white/20 px-4 py-2 rounded-lg">← Back</button>
-            <div className="text-center">
-              <div className="font-bold">{currentSong.title}</div>
-              <div className="text-xs text-green-300">Page {currentSong.page}</div>
+if (view === 'display' && showLyrics && currentSong) {
+  return (
+    <div className={`min-h-screen flex flex-col ${isDark ? 'bg-slate-900' : 'bg-green-900'} text-white`}>
+      {/* Sticky Header */}
+      <div className="sticky top-0 bg-black/80 backdrop-blur p-4 z-10 border-b border-white/10">
+        <div className="flex items-center justify-between max-w-3xl mx-auto">
+          <button 
+            onClick={() => setShowLyrics(false)} 
+            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
+          >
+            ← Back
+          </button>
+          <div className="text-center">
+            <div className="text-base sm:text-xl font-bold">{currentSong.title}</div>
+            <div className="text-xs sm:text-sm text-green-300">
+              Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}
             </div>
-            <div className="w-20"></div>
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 text-center">
-            <div className="max-w-3xl mx-auto text-xl sm:text-2xl leading-relaxed whitespace-pre-wrap">
-              {currentSong.lyrics_text || "No lyrics available"}
-            </div>
+          <div className="w-20"></div>
         </div>
       </div>
-    );
-  }
+
+      {/* Scrollable Lyrics */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-sm text-green-300 mb-4 text-center">Now Singing</div>
+          {currentSong.lyrics_text ? (
+            <div className="text-lg sm:text-xl lg:text-2xl tv:text-3xl leading-relaxed whitespace-pre-wrap text-center">
+              {currentSong.lyrics_text}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-8">
+              <div className="text-5xl mb-4">📄</div>
+              <div>No lyrics available for this song</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Button */}
+      <div className="p-4 bg-black/80 border-t border-white/10">
+        <button 
+          onClick={() => setShowLyrics(false)}
+          className="w-full max-w-3xl mx-auto block py-3 rounded-xl font-bold bg-green-600 hover:bg-green-500 text-white transition-colors"
+        >
+          Back to Queue
+        </button>
+      </div>
+    </div>
+  );
+}
 
   // Display View - Main (TV Safe)
   if (view === 'display') {
@@ -357,6 +387,15 @@ export default function Home() {
               <div className="text-3xl tv:text-5xl text-green-400 font-bold">
                 Page {currentSong.page} {currentSong.old_page && `(${currentSong.old_page})`}
               </div>
+{currentSong.has_lyrics && (
+  <button 
+    onClick={() => setShowLyrics(true)}
+    className="mt-6 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold text-lg transition-all"
+  >
+    📄 View Lyrics
+  </button>
+)}
+
               {showLyricsOnTV && currentSong.lyrics_text && (
                 <div className="mt-12 text-2xl tv:text-4xl leading-relaxed text-gray-200 max-w-4xl mx-auto whitespace-pre-wrap">
                   {currentSong.lyrics_text}
