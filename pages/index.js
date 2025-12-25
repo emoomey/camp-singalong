@@ -301,13 +301,23 @@ export default function Home() {
               <button
                 onClick={joinRoom}
                 disabled={loading || !roomCodeInput}
-                className="w-full py-3 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/20"
+                className="w-full py-3 rounded-2xl font-black text-white bg-blue-500 hover:bg-blue-500 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/20"
               >
                 Join
               </button>
             </div>
           </div>
         </div>
+        <div className="fixed bottom-4 left-0 right-0 text-center">
+        
+         <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-400 text-sm hover:text-gray-300 transition-colors"
+        >
+          📝 Share Feedback
+        </a>
+      </div>
       </div>
     );
   }
