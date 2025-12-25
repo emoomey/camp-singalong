@@ -279,119 +279,116 @@ export default function Admin() {
           </div>
         )}
 
-        {/* Form Section */}
+        {/* Add/Edit Form Section */}
         {(editingSong || isAddingNew) && (
-          <div style={{background:theme.bgSecondary,borderRadius:'0.75rem',padding:'1.5rem',marginBottom:'1.5rem',border:`1px solid ${theme.border}`}}>
-            <h2 style={{fontSize:'1.25rem',fontWeight:'bold',marginBottom:'1rem'}}>{isAddingNew ? 'Add New Song' : `Editing: ${editingSong.title}`}</h2>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
-              <div>
-                <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Title *</label>
-                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
+          <div className="bg-slate-800 border-2 border-green-500/30 rounded-2xl p-6 mb-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-black flex items-center gap-2">
+                {isAddingNew ? '✨ Add New Song' : `✏️ Editing: ${editingSong.title}`}
+              </h2>
+              <button onClick={cancelEdit} className="text-slate-400 hover:text-white transition-colors">
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Title Field */}
+              <div className="md:col-span-2">
+                <label htmlFor="formTitle" className="block text-sm font-bold text-slate-400 mb-2">Song Title *</label>
+                <input 
+                  id="formTitle"
+                  type="text" 
+                  value={formTitle} 
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all"
+                />
               </div>
+
+              {/* Section Select */}
               <div>
-                <label style={{display:'block',fontSize:'0.875rem',color:theme.textSecondary,marginBottom:'0.25rem'}}>Section</label>
-                <select value={formSection} onChange={(e) => setFormSection(e.target.value)} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}>
-                  {Object.entries(SECTION_INFO).map(([letter, name]) => <option key={letter} value={letter}>{letter}: {name}</option>)}
+                <label htmlFor="formSection" className="block text-sm font-bold text-slate-400 mb-2">Category Section</label>
+                <select 
+                  id="formSection"
+                  value={formSection} 
+                  onChange={(e) => setFormSection(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all cursor-pointer"
+                >
+                  {Object.entries(SECTION_INFO).map(([letter, name]) => (
+                    <option key={letter} value={letter}>{letter}: {name}</option>
+                  ))}
                 </select>
               </div>
-              <input type="text" placeholder="Page (new)" value={formPage} onChange={(e) => setFormPage(e.target.value)} style={{padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
-              <input type="text" placeholder="Old Page" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)} style={{padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text}}/>
+
+              {/* Page Numbers Group */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="formPage" className="block text-sm font-bold text-slate-400 mb-2">New Page</label>
+                  <input id="formPage" type="text" placeholder="F-2" value={formPage} onChange={(e) => setFormPage(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 outline-none" />
+                </div>
+                <div>
+                  <label htmlFor="formOldPage" className="block text-sm font-bold text-slate-400 mb-2">Old Page</label>
+                  <input id="formOldPage" type="text" placeholder="42" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 outline-none" />
+                </div>
+              </div>
+
+              {/* Lyrics Textarea */}
+              <div className="md:col-span-2">
+                <label htmlFor="formLyrics" className="block text-sm font-bold text-slate-400 mb-2">Lyrics Content</label>
+                <textarea 
+                  id="formLyrics"
+                  value={formLyrics} 
+                  onChange={(e) => setFormLyrics(e.target.value)}
+                  placeholder="Paste lyrics here..."
+                  rows={8}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all font-mono text-sm leading-relaxed"
+                />
+              </div>
             </div>
-            <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)} placeholder="Lyrics..." rows={10} style={{width:'100%',padding:'0.5rem',borderRadius:'0.25rem',border:`1px solid ${theme.border}`,background:theme.bg,color:theme.text,marginBottom:'1rem'}}/>
-            <div style={{display:'flex',gap:'0.5rem'}}>
-              <button onClick={saveSong} disabled={saving} style={{background:theme.primary,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',fontWeight:'600'}}>{saving ? 'Saving...' : 'Save'}</button>
-              <button onClick={cancelEdit} style={{background:theme.bgSecondary,color:theme.text,padding:'0.5rem 1rem',borderRadius:'0.5rem',border:`1px solid ${theme.border}`}}>Cancel</button>
-              {editingSong && <button onClick={deleteSong} style={{background:theme.danger,color:'white',padding:'0.5rem 1rem',borderRadius:'0.5rem',border:'none',marginLeft:'auto'}}>Delete</button>}
+
+            {/* Form Actions */}
+            <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-slate-700">
+              <button 
+                onClick={saveSong} 
+                disabled={saving}
+                className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-black transition-all shadow-lg shadow-green-900/40"
+              >
+                {saving ? 'Saving...' : 'SAVE CHANGES'}
+              </button>
+              <button 
+                onClick={cancelEdit}
+                className="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold transition-all"
+              >
+                Cancel
+              </button>
+              
+              {editingSong && (
+                <button 
+                  onClick={deleteSong} 
+                  disabled={saving}
+                  className="w-full md:w-auto md:ml-auto bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-6 py-3 rounded-xl font-bold transition-all border border-red-900/50"
+                >
+                  Delete Song
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Search & Stats Bar */}
-        <div className="mb-6 space-y-2">
-          <div className="relative group">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors">
-              🔍
-            </span>
-            <input 
-              type="text" 
-              placeholder="Search by title, page, or section..."
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-slate-500 focus:bg-slate-800 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all shadow-inner"
-            />
-          </div>
-          <div className="flex justify-between items-center px-2">
-            <p className="text-sm text-slate-400 font-medium">
-              Showing <span className="text-green-400 font-bold">{filteredSongs.length}</span> of {allSongs.length} songs
-            </p>
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="text-sm text-green-500 hover:text-green-400 font-bold transition-colors"
-              >
-                Clear Search
-              </button>
-            )}
-          </div>
-        </div>
+        {/* Footer / Feedback */}
+        <footer className="mt-20 mb-10 text-center border-t border-slate-800 pt-8">
+          <a 
+            href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-slate-500 hover:text-green-400 transition-colors font-medium text-sm"
+          >
+            <span>📝</span> Have feedback? Share it with the team
+          </a>
+        </footer>
 
-        {/* Song List Container */}
-        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden backdrop-blur-sm shadow-xl mb-12">
-          <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden">
-            {filteredSongs.length > 0 ? (
-              <div className="divide-y divide-slate-700/50">
-                {filteredSongs.map(song => (
-                  <button 
-                    key={song.id} 
-                    onClick={() => startEdit(song)}
-                    className={`w-full text-left p-4 sm:px-6 transition-all flex items-center justify-between group hover:bg-slate-700/40 outline-none focus:bg-slate-700/60 ${
-                      editingSong?.id === song.id ? 'bg-green-500/10 border-l-4 border-l-green-500' : 'border-l-4 border-l-transparent'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-100 group-hover:text-white transition-colors truncate text-lg">
-                        {song.title}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-black bg-slate-700 text-slate-300">
-                          Sec {song.section}
-                        </span>
-                        <span className="text-sm text-slate-400 flex items-center gap-1">
-                          📄 Page {song.page || '—'}
-                          {song.old_page && (
-                            <span className="text-slate-500 text-xs">(Old: {song.old_page})</span>
-                          )}
-                        </span>
-                        {song.has_lyrics && (
-                          <span className="text-xs text-green-500 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                            Lyrics
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="ml-4 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity hidden sm:block">
-                      <span className="bg-slate-700 text-slate-300 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-2 border border-slate-600">
-                        EDIT ✏️
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="p-16 text-center">
-                <div className="text-5xl mb-4 grayscale opacity-20">📂</div>
-                <h3 className="text-lg font-bold text-slate-300">No matches found</h3>
-                <p className="text-slate-500 text-sm mt-1">Try a different title or page number</p>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div style={{position:'fixed',bottom:'1rem',left:'0',right:'0',textAlign:'center',background:theme.bg,paddingTop:'0.5rem'}}>
-          <a href="https://docs.google.com/forms/..." target="_blank" rel="noopener noreferrer" style={{color:'#9ca3af',fontSize:'0.875rem',textDecoration:'none'}}>📝 Share Feedback</a>
-        </div>
-      </div>
-    </div>
+      </div> {/* End of Max-Width Container */}
+    </div> // End of Main Background
   );
 }
