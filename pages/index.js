@@ -250,36 +250,27 @@ export default function Home() {
   };
 
   const filteredSongs = allSongs.filter(song => {
-  const searchLower = searchTerm.toLowerCase().trim();
-  if (!searchLower) return true;
+    const searchLower = searchTerm.toLowerCase().trim();
+    if (!searchLower) return true;
+    const matchesTitle = song.title.toLowerCase().includes(searchLower);
+    const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
+                        (song.old_page && song.old_page.toLowerCase().includes(searchLower));
+    const sectionName = SECTION_INFO[song.section] || "";
+    const matchesSection = song.section?.toLowerCase() === searchLower || 
+                           sectionName.toLowerCase().includes(searchLower);
+    return matchesTitle || matchesPage || matchesSection;
+  });
 
-  const matchesTitle = song.title.toLowerCase().includes(searchLower);
-  const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
-                      (song.old_page && song.old_page.toLowerCase().includes(searchLower));
-  
-  const sectionName = SECTION_INFO[song.section] || "";
-  const matchesSection = song.section?.toLowerCase() === searchLower || 
-                         sectionName.toLowerCase().includes(searchLower);
-
-  return matchesTitle || matchesPage || matchesSection;
-});
-
-  // Landing Page - No Room Code
-
-  
-// Landing Page - No Room Code
+  // Landing Page - Fixed for Mobile
   if (!roomCode) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-green-50'}`}>
-        <div className={`shadow-2xl rounded-3xl p-8 w-full max-w-md border animate-in fade-in zoom-in duration-500 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-green-100'}`}>
-          <div className="text-center mb-10">
+        <div className={`shadow-2xl rounded-3xl p-6 sm:p-8 w-full max-w-md border animate-in fade-in zoom-in duration-500 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-green-100'}`}>
+          <div className="text-center mb-8">
             <div className="text-6xl mb-4 drop-shadow-lg">🎵</div>
-            <h1 className={`text-4xl font-black tracking-tight ${isDark ? 'text-white' : 'text-green-900'}`}>
+            <h1 className={`text-3xl sm:text-4xl font-black tracking-tight ${isDark ? 'text-white' : 'text-green-900'}`}>
               Camp <span className="text-green-600">Singalong</span>
             </h1>
-            <p className={`mt-2 font-medium ${isDark ? 'text-slate-400' : 'text-green-700/70'}`}>
-              Ready to lead the choir?
-            </p>
           </div>
 
           <div className="space-y-6">
@@ -297,324 +288,225 @@ export default function Home() {
               <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-green-100'}`}></div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="CODE"
-                  value={roomCodeInput}
-                  onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                  onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
-                  className={`flex-1 border-2 rounded-2xl px-4 py-3 text-xl font-black tracking-widest transition-all outline-none focus:ring-4 focus:ring-green-500/10 ${
-                    isDark 
-                      ? 'bg-slate-950 border-slate-800 text-white focus:border-green-500 placeholder:text-slate-800' 
-                      : 'bg-green-50 border-green-100 text-green-900 focus:border-green-500 placeholder:text-green-200'
-                  }`}
-                />
-                <button
-                  onClick={joinRoom}
-                  disabled={loading || !roomCodeInput}
-                  className="px-6 py-3 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/20"
-                >
-                  Join
-                </button>
-              </div>
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                placeholder="ROOM CODE"
+                value={roomCodeInput}
+                onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
+                className={`w-full border-2 rounded-2xl px-4 py-3 text-center text-xl font-black tracking-widest transition-all outline-none focus:ring-4 focus:ring-green-500/10 ${
+                  isDark 
+                    ? 'bg-slate-950 border-slate-800 text-white focus:border-green-500 placeholder:text-slate-700' 
+                    : 'bg-green-50 border-green-100 text-green-900 focus:border-green-500 placeholder:text-green-200'
+                }`}
+              />
+              <button
+                onClick={joinRoom}
+                disabled={loading || !roomCodeInput}
+                className="w-full py-3 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/20"
+              >
+                Join
+              </button>
             </div>
           </div>
-        </div>
-
-        <div className="fixed bottom-6 left-0 right-0 text-center">
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-500 hover:text-green-500 text-sm font-medium transition-colors"
-          >
-            📝 Share Feedback
-          </a>
         </div>
       </div>
     );
   }
-
-
 
   // Display View - Full Screen Lyrics
   if (view === 'display' && showLyrics && currentSong) {
     return (
-      <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-green-900 via-green-700 to-green-900'} text-white`}>
-        {/* Sticky Header */}
-        <div className="sticky top-0 bg-black/80 backdrop-blur p-3 sm:p-4 z-10 border-b border-white/10">
+      <div className={`min-h-screen flex flex-col ${isDark ? 'bg-slate-900' : 'bg-green-900'} text-white`}>
+        <div className="sticky top-0 bg-black/80 backdrop-blur p-4 z-10 border-b border-white/10">
           <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <button
-              onClick={() => setShowLyrics(false)}
-              className="bg-white/20 hover:bg-white/30 px-3 py-2 sm:px-4 rounded-lg transition-colors flex items-center gap-2"
-            >
-              ← Back
-            </button>
+            <button onClick={() => setShowLyrics(false)} className="bg-white/20 px-4 py-2 rounded-lg">← Back</button>
             <div className="text-center">
-              <div className="text-base sm:text-xl font-bold">{currentSong.title}</div>
-              <div className="text-xs sm:text-sm text-green-300">
-                Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}
-              </div>
+              <div className="font-bold">{currentSong.title}</div>
+              <div className="text-xs text-green-300">Page {currentSong.page}</div>
             </div>
-            <div className="w-16 sm:w-20"></div>
+            <div className="w-20"></div>
           </div>
         </div>
-
-        {/* Scrollable Lyrics */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="max-w-3xl mx-auto">
-            <div className="text-sm text-green-300 mb-4 text-center">Now Singing</div>
-            {currentSong.lyrics_text ? (
-              <div className="text-base sm:text-lg lg:text-xl tv:text-2xl leading-relaxed whitespace-pre-wrap">
-                {currentSong.lyrics_text}
-              </div>
-            ) : (
-              <div className="text-center text-gray-400 py-8">
-                <div className="text-5xl mb-4">📄</div>
-                <div>No lyrics available for this song</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom Button */}
-        <div className="p-4 bg-black/80 border-t border-white/10">
-          <button
-            onClick={() => setShowLyrics(false)}
-            className={`w-full max-w-3xl mx-auto block py-3 rounded-lg font-semibold transition-colors
-              ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
-          >
-            Back to Queue
-          </button>
+        <div className="flex-1 overflow-y-auto p-6 text-center">
+            <div className="max-w-3xl mx-auto text-xl sm:text-2xl leading-relaxed whitespace-pre-wrap">
+              {currentSong.lyrics_text || "No lyrics available"}
+            </div>
         </div>
       </div>
     );
   }
 
-  // Display View - Main
+  // Display View - Main (Safe for TV)
   if (view === 'display') {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-green-900 via-green-700 to-green-900'} text-white`}>
-        {/* Header */}
-        <div className="flex justify-between items-start p-3 sm:p-4 flex-wrap gap-2">
-          <div className="bg-white/20 px-3 py-2 sm:px-4 rounded-lg">
-            <div className="text-xs text-green-300">Room Code</div>
-            <div className="text-lg sm:text-xl font-bold">{roomCode}</div>
+      <div className={`min-h-screen tv:p-20 ${isDark ? 'bg-slate-950' : 'bg-green-900'} text-white flex flex-col`}>
+        <div className="flex justify-between items-start p-4 tv:max-w-6xl tv:mx-auto w-full">
+          <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+            <div className="text-[10px] uppercase font-bold opacity-60">Room Code</div>
+            <div className="text-2xl font-black">{roomCode}</div>
           </div>
-          <button
-            onClick={() => setView('control')}
-            className="bg-white/20 hover:bg-white/30 px-3 py-2 sm:px-4 rounded-lg transition-colors flex items-center gap-2 text-sm"
-          >
-            📱 Control View
-          </button>
+          <button onClick={() => setView('control')} className="bg-white/10 px-4 py-2 rounded-xl text-sm font-bold">📱 Control</button>
         </div>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 tv:px-8">
-          {/* Now Singing */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl tv:text-6xl font-bold mb-2">🎵 Now Singing</h1>
-            {currentSong ? (
-              <>
-                <div className="text-3xl sm:text-5xl lg:text-6xl tv:text-7xl font-bold mb-2">{currentSong.title}</div>
-                <div className="text-2xl sm:text-4xl lg:text-5xl tv:text-6xl text-green-300">
-                  Page {currentSong.page}{currentSong.old_page ? ` (${currentSong.old_page})` : ''}
+        <div className="flex-1 flex flex-col justify-center items-center text-center px-6 tv:max-w-6xl tv:mx-auto w-full">
+          <h1 className="text-3xl tv:text-6xl font-black mb-4 opacity-50 uppercase tracking-widest">Now Singing</h1>
+          {currentSong ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="text-5xl tv:text-8xl font-black mb-4 leading-tight">{currentSong.title}</div>
+              <div className="text-3xl tv:text-5xl text-green-400 font-bold">Page {currentSong.page} {currentSong.old_page && `(${currentSong.old_page})`}</div>
+              {showLyricsOnTV && currentSong.lyrics_text && (
+                <div className="mt-12 text-2xl tv:text-4xl leading-relaxed text-gray-200 max-w-4xl mx-auto whitespace-pre-wrap">
+                  {currentSong.lyrics_text}
                 </div>
-
-                {/* View Lyrics Button */}
-                {currentSong.has_lyrics && (
-                  <button
-                    onClick={() => setShowLyrics(true)}
-                    className={`mt-4 px-6 py-3 rounded-lg font-semibold text-base sm:text-lg transition-colors
-                      ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
-                  >
-                    📄 View Lyrics
-                  </button>
-                )}
-
-                {/* TV Lyrics Display */}
-                {showLyricsOnTV && currentSong.lyrics_text && (
-                  <div className="mt-6 sm:mt-8 text-left bg-white/10 rounded-xl p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-                    <div className="text-base sm:text-lg lg:text-xl tv:text-2xl leading-relaxed whitespace-pre-wrap">
-                      {currentSong.lyrics_text}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-2xl sm:text-4xl lg:text-5xl tv:text-6xl text-green-400">Pick a song to start!</div>
-            )}
-          </div>
-
-          {/* Up Next Queue */}
-          <div className="bg-white/10 rounded-xl p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl tv:text-4xl font-bold mb-4">👥 Up Next ({queue.length})</h2>
-            {queue.length === 0 ? (
-              <p className="text-lg sm:text-xl lg:text-2xl tv:text-3xl text-green-300">No songs in queue yet</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {queue.slice(0, 8).map((song, idx) => (
-                  <div key={song.id} className="bg-white/10 rounded-xl p-3 sm:p-4 flex justify-between items-center">
-                    <div>
-                      <div className="text-base sm:text-xl lg:text-2xl tv:text-3xl font-semibold">
-                        {idx + 1}. {song.song_title}
-                        {song.has_lyrics && <span className="ml-2 text-sm" title="Lyrics available">📄</span>}
-                      </div>
-                      <div className="text-sm sm:text-base lg:text-lg tv:text-xl text-green-300">
-                        Page {song.song_page}{song.old_page ? ` (${song.old_page})` : ''}
-                      </div>
-                      <div className="text-sm sm:text-lg lg:text-xl tv:text-2xl text-green-400">- {song.requester}</div>
-                    </div>
-                  </div>
-                ))}
-                {queue.length > 8 && (
-                  <div className="text-sm sm:text-lg lg:text-xl tv:text-2xl text-green-400 text-center">
-                    + {queue.length - 8} more songs
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-4xl opacity-30 italic">Pick a song to begin...</div>
+          )}
         </div>
+
+        {queue.length > 0 && (
+          <div className="p-8 bg-black/20 w-full mt-auto tv:rounded-3xl tv:mb-10">
+            <h2 className="text-xl tv:text-3xl font-bold mb-4 opacity-60">Up Next</h2>
+            <div className="flex gap-4 overflow-x-hidden">
+               {queue.slice(0, 4).map((song, i) => (
+                 <div key={song.id} className="bg-white/5 p-4 rounded-2xl flex-1 min-w-0 border border-white/5">
+                   <div className="font-bold truncate text-lg tv:text-2xl">{i+1}. {song.song_title}</div>
+                   <div className="text-sm tv:text-xl text-green-400">Page {song.song_page} • {song.requester}</div>
+                 </div>
+               ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
- // Control View
+  // Control View
   return (
-    <div className={`min-h-screen p-2 sm:p-4 ${isDark ? 'bg-slate-900 text-white' : 'bg-green-50 text-slate-900'}`}>
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 pb-20">
-
-        {/* Header Card */}
-        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-              🎵 Camp Singalong
-            </h1>
-            <button
-              onClick={() => setView('display')}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors"
-            >
-              📺 Display View
-            </button>
+    <div className={`min-h-screen p-2 sm:p-4 pb-20 ${isDark ? 'bg-slate-950 text-white' : 'bg-green-50 text-slate-900'}`}>
+      <div className="max-w-4xl mx-auto space-y-4">
+        
+        {/* Header & Now Singing Controls */}
+        <div className={`rounded-3xl shadow-xl p-6 ${isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-green-100'}`}>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-xl font-black tracking-tight">🎵 Camp Singalong</h1>
+            <button onClick={() => setView('display')} className="bg-green-600 px-4 py-2 rounded-xl text-white font-bold text-sm shadow-lg shadow-green-900/20 transition-transform active:scale-95">📺 Display View</button>
           </div>
 
-          {/* Room Code */}
-          <div className={`flex flex-col sm:flex-row items-center gap-3 p-3 sm:p-4 rounded-lg border ${isDark ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200'}`}>
-            <div className="flex-1 text-center sm:text-left">
-              <div className="text-xs font-bold uppercase tracking-widest opacity-60">Room Code</div>
-              <div className="text-2xl font-black">{roomCode}</div>
-            </div>
-            <button
-              onClick={copyRoomCode}
-              className="w-full sm:w-auto px-6 py-2 rounded-lg font-bold bg-green-600 text-white hover:bg-green-500"
-            >
-              {copied ? '✓ Copied' : '📋 Copy'}
-            </button>
+          <div className={`p-4 rounded-2xl mb-4 border-2 ${isDark ? 'bg-green-950/20 border-green-900/50' : 'bg-green-50 border-green-100'}`}>
+             <div className="text-[10px] font-black uppercase opacity-60 mb-1">Room Code</div>
+             <div className="flex justify-between items-center">
+               <span className="text-3xl font-black tracking-tighter">{roomCode}</span>
+               <button onClick={copyRoomCode} className="text-xs font-bold bg-green-600 text-white px-3 py-1.5 rounded-lg">{copied ? 'Copied!' : 'Copy'}</button>
+             </div>
           </div>
-        </div>
 
-        {/* Queue Section */}
-        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
-            👥 Up Next <span className="text-sm font-normal opacity-60">({queue.length} songs)</span>
-          </h2>
-
-          {queue.length === 0 ? (
-            <p className="text-center py-8 opacity-50">No songs in queue</p>
-          ) : (
-            <div className="space-y-2">
-              {queue.map((song) => (
-                <div key={song.id} className={`flex items-center gap-3 p-3 rounded-lg border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className="flex flex-col gap-1">
-                    <button onClick={() => moveInQueue(song, -1)} className="p-1 hover:bg-green-500/20 rounded text-xs">▲</button>
-                    <button onClick={() => moveInQueue(song, 1)} className="p-1 hover:bg-green-500/20 rounded text-xs">▼</button>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold truncate flex items-center gap-2">
-                      {song.song_title}
-                      {song.has_lyrics && <span title="Lyrics Available">📄</span>}
-                    </div>
-                    <div className="text-xs opacity-70">Page {song.song_page} • {song.requester}</div>
-                  </div>
-                  <div className="flex gap-1 sm:gap-2">
-                    <button
-                      onClick={() => playSong(song)}
-                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-bold"
-                    >
-                      Play
-                    </button>
-                    <button
-                      onClick={() => removeFromQueue(song.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {currentSong && (
+            <div className={`p-4 rounded-2xl border-2 ${isDark ? 'bg-blue-950/20 border-blue-900/50' : 'bg-blue-50 border-blue-100'}`}>
+              <div className="text-[10px] font-black uppercase opacity-60 mb-1">Currently Singing</div>
+              <div className="text-xl font-bold mb-2">{currentSong.title}</div>
+              {currentSong.has_lyrics && (
+                <button 
+                  onClick={() => setShowLyricsOnTV(!showLyricsOnTV)}
+                  className={`w-full py-2 rounded-xl font-bold text-sm transition-colors border ${showLyricsOnTV ? 'bg-green-600 text-white border-green-600' : 'bg-transparent border-slate-400 opacity-60'}`}
+                >
+                  {showLyricsOnTV ? '📄 Lyrics on TV: ON' : '📄 Lyrics on TV: OFF'}
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* History / Already Sung */}
-        {sungSongs.length > 0 && (
-          <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-            <h2 className="text-lg sm:text-xl font-bold mb-4 opacity-70">📜 Recently Sung</h2>
-            <div className="flex flex-wrap gap-2">
-              {sungSongs.slice().reverse().map((song, i) => (
-                <div key={i} className={`px-3 py-1 rounded-full text-xs font-medium border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-100 border-gray-200'}`}>
-                  {song.title}
+        {/* Randomizer */}
+        <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-black text-lg">🎲 Random Song</h2>
+            <button onClick={() => setShowSectionFilter(!showSectionFilter)} className="text-xs font-bold text-blue-500 uppercase">Filter Sections</button>
+          </div>
+          
+          {showSectionFilter && (
+            <div className="grid grid-cols-2 gap-2 mb-4 max-h-40 overflow-y-auto p-2 bg-black/5 rounded-xl">
+              {Object.keys(SECTION_INFO).map(sec => (
+                <label key={sec} className="flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={selectedSections.includes(sec)} onChange={() => toggleSection(sec)} />
+                  {sec}: {SECTION_INFO[sec]}
+                </label>
+              ))}
+            </div>
+          )}
+          
+          <button onClick={generateRandomSong} className="w-full bg-blue-600 text-white py-3 rounded-2xl font-black shadow-lg shadow-blue-900/20 active:scale-95 transition-transform">Pick Random Song</button>
+        </div>
+
+        {/* Queue */}
+        <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+          <h2 className="font-black text-lg mb-4">👥 Up Next ({queue.length})</h2>
+          <div className="space-y-3">
+            {queue.map(song => (
+              <div key={song.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => moveInQueue(song, -1)} className="opacity-40 hover:opacity-100 text-[10px]">▲</button>
+                  <button onClick={() => moveInQueue(song, 1)} className="opacity-40 hover:opacity-100 text-[10px]">▼</button>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold truncate text-sm flex items-center gap-1">
+                    {song.song_title} {song.has_lyrics && '📄'}
+                  </div>
+                  <div className="text-[10px] opacity-60 uppercase font-black">P.{song.song_page} • {song.requester}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => playSong(song)} className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-bold">Play</button>
+                  <button onClick={() => removeFromQueue(song.id)} className="text-lg opacity-40 hover:text-red-500 hover:opacity-100 transition-all">🗑️</button>
+                </div>
+              </div>
+            ))}
+            {queue.length === 0 && <div className="text-center py-4 opacity-30 text-sm italic">Queue is empty</div>}
+          </div>
+        </div>
+
+        {/* History */}
+        {sungSongs.length > 0 && (
+          <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+            <h2 className="font-black text-sm uppercase opacity-40 tracking-widest mb-3">Recently Sung</h2>
+            <div className="flex flex-wrap gap-2">
+              {sungSongs.slice().reverse().map((s, i) => (
+                <div key={i} className="bg-black/5 px-3 py-1 rounded-full text-[10px] font-bold border border-black/5">{s.title}</div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Request a Song */}
-        <div className={`rounded-xl shadow-lg p-4 sm:p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-          <h2 className="text-lg sm:text-xl font-bold mb-4">Add to Queue</h2>
-          <input
-            type="text"
-            placeholder="Search by title, page, or section..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full px-4 py-3 rounded-xl mb-4 border focus:ring-2 focus:ring-green-500 outline-none ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+        {/* Search */}
+        <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+          <h2 className="font-black text-lg mb-4">Add a Song</h2>
+          <input 
+            type="text" placeholder="Search title or page..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className={`w-full p-3 rounded-2xl mb-4 border outline-none focus:ring-2 focus:ring-green-500 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
           />
-          <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-            {filteredSongs.slice(0, 50).map(song => (
-              <div key={song.id} className={`flex justify-between items-center p-3 rounded-lg border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="max-h-60 overflow-y-auto space-y-2 mb-6">
+            {filteredSongs.slice(0, 30).map(song => (
+              <div key={song.id} className="flex justify-between items-center p-3 rounded-xl border border-black/5 bg-black/5">
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold truncate">{song.title} {song.has_lyrics && '📄'}</div>
-                  <div className="text-xs opacity-60 text-green-600 font-bold uppercase">Section {song.section} • Page {song.page}</div>
+                  <div className="font-bold text-sm truncate">{song.title} {song.has_lyrics && '📄'}</div>
+                  <div className="text-[10px] opacity-50 font-black uppercase">Sec {song.section} • Page {song.page}</div>
                 </div>
-                <button
-                  onClick={() => addToQueue(song)}
-                  className="ml-3 p-2 bg-green-600 text-white rounded-lg hover:bg-green-500"
-                >
-                  ➕
-                </button>
+                <button onClick={() => addToQueue(song)} className="ml-3 bg-green-600 text-white w-8 h-8 rounded-full font-bold">＋</button>
               </div>
             ))}
           </div>
-          
+
           <div className="border-t pt-4">
-            <p className="text-sm font-bold mb-2 opacity-70">Unlisted Song:</p>
+            <p className="text-[10px] font-black uppercase opacity-40 mb-2">Unlisted Song</p>
             <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Song Title..."
-                value={customSongInput}
-                onChange={(e) => setCustomSongInput(e.target.value)}
-                className={`flex-1 px-3 py-2 rounded-lg border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
-              />
-              <button onClick={addCustomSong} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold">Add</button>
+              <input type="text" value={customSongInput} onChange={(e) => setCustomSongInput(e.target.value)} placeholder="Title..." className={`flex-1 p-2 rounded-xl border text-sm ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
+              <button onClick={addCustomSong} className="bg-blue-600 text-white px-4 rounded-xl font-bold text-sm">Add</button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
