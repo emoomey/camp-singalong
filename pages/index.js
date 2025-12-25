@@ -261,7 +261,6 @@ export default function Home() {
     return matchesTitle || matchesPage || matchesSection;
   });
 
-  // Landing Page - Fixed for Mobile
   if (!roomCode) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-green-50'}`}>
@@ -272,7 +271,6 @@ export default function Home() {
               Camp <span className="text-green-600">Singalong</span>
             </h1>
           </div>
-
           <div className="space-y-6">
             <button
               onClick={createRoom}
@@ -281,13 +279,11 @@ export default function Home() {
             >
               {loading ? 'Creating...' : 'Start New Room'}
             </button>
-
             <div className="relative flex items-center py-2">
               <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-green-100'}`}></div>
               <span className={`flex-shrink mx-4 text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-green-300'}`}>OR JOIN ROOM</span>
               <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-green-100'}`}></div>
             </div>
-
             <div className="flex flex-col gap-3">
               <input
                 type="text"
@@ -315,7 +311,6 @@ export default function Home() {
     );
   }
 
-  // Display View - Full Screen Lyrics
   if (view === 'display' && showLyrics && currentSong) {
     return (
       <div className={`min-h-screen flex flex-col ${isDark ? 'bg-slate-900' : 'bg-green-900'} text-white`}>
@@ -338,7 +333,6 @@ export default function Home() {
     );
   }
 
-  // Display View - Main (Safe for TV)
   if (view === 'display') {
     return (
       <div className={`min-h-screen tv:p-20 ${isDark ? 'bg-slate-950' : 'bg-green-900'} text-white flex flex-col`}>
@@ -349,7 +343,6 @@ export default function Home() {
           </div>
           <button onClick={() => setView('control')} className="bg-white/10 px-4 py-2 rounded-xl text-sm font-bold">📱 Control</button>
         </div>
-
         <div className="flex-1 flex flex-col justify-center items-center text-center px-6 tv:max-w-6xl tv:mx-auto w-full">
           <h1 className="text-3xl tv:text-6xl font-black mb-4 opacity-50 uppercase tracking-widest">Now Singing</h1>
           {currentSong ? (
@@ -366,14 +359,15 @@ export default function Home() {
             <div className="text-4xl opacity-30 italic">Pick a song to begin...</div>
           )}
         </div>
-
         {queue.length > 0 && (
           <div className="p-8 bg-black/20 w-full mt-auto tv:rounded-3xl tv:mb-10">
             <h2 className="text-xl tv:text-3xl font-bold mb-4 opacity-60">Up Next</h2>
             <div className="flex gap-4 overflow-x-hidden">
                {queue.slice(0, 4).map((song, i) => (
                  <div key={song.id} className="bg-white/5 p-4 rounded-2xl flex-1 min-w-0 border border-white/5">
-                   <div className="font-bold truncate text-lg tv:text-2xl">{i+1}. {song.song_title}</div>
+                   <div className="font-bold truncate text-lg tv:text-2xl">
+                     {i+1}. {song.song_title} {song.has_lyrics && '📄'}
+                   </div>
                    <div className="text-sm tv:text-xl text-green-400">Page {song.song_page} • {song.requester}</div>
                  </div>
                ))}
@@ -384,18 +378,15 @@ export default function Home() {
     );
   }
 
-  // Control View
   return (
     <div className={`min-h-screen p-2 sm:p-4 pb-20 ${isDark ? 'bg-slate-950 text-white' : 'bg-green-50 text-slate-900'}`}>
       <div className="max-w-4xl mx-auto space-y-4">
         
-        {/* Header & Now Singing Controls */}
         <div className={`rounded-3xl shadow-xl p-6 ${isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-green-100'}`}>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-xl font-black tracking-tight">🎵 Camp Singalong</h1>
             <button onClick={() => setView('display')} className="bg-green-600 px-4 py-2 rounded-xl text-white font-bold text-sm shadow-lg shadow-green-900/20 transition-transform active:scale-95">📺 Display View</button>
           </div>
-
           <div className={`p-4 rounded-2xl mb-4 border-2 ${isDark ? 'bg-green-950/20 border-green-900/50' : 'bg-green-50 border-green-100'}`}>
              <div className="text-[10px] font-black uppercase opacity-60 mb-1">Room Code</div>
              <div className="flex justify-between items-center">
@@ -403,7 +394,6 @@ export default function Home() {
                <button onClick={copyRoomCode} className="text-xs font-bold bg-green-600 text-white px-3 py-1.5 rounded-lg">{copied ? 'Copied!' : 'Copy'}</button>
              </div>
           </div>
-
           {currentSong && (
             <div className={`p-4 rounded-2xl border-2 ${isDark ? 'bg-blue-950/20 border-blue-900/50' : 'bg-blue-50 border-blue-100'}`}>
               <div className="text-[10px] font-black uppercase opacity-60 mb-1">Currently Singing</div>
@@ -420,28 +410,30 @@ export default function Home() {
           )}
         </div>
 
-        {/* Randomizer */}
         <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-black text-lg">🎲 Random Song</h2>
             <button onClick={() => setShowSectionFilter(!showSectionFilter)} className="text-xs font-bold text-blue-500 uppercase">Filter Sections</button>
           </div>
-          
           {showSectionFilter && (
-            <div className="grid grid-cols-2 gap-2 mb-4 max-h-40 overflow-y-auto p-2 bg-black/5 rounded-xl">
-              {Object.keys(SECTION_INFO).map(sec => (
-                <label key={sec} className="flex items-center gap-2 text-xs">
-                  <input type="checkbox" checked={selectedSections.includes(sec)} onChange={() => toggleSection(sec)} />
-                  {sec}: {SECTION_INFO[sec]}
-                </label>
-              ))}
+            <div className="mb-4">
+              <div className="flex gap-2 mb-3">
+                <button onClick={() => setSelectedSections(Object.keys(SECTION_INFO))} className="flex-1 py-2 bg-green-600/10 text-green-600 rounded-lg text-xs font-black uppercase">Check All</button>
+                <button onClick={() => setSelectedSections([])} className="flex-1 py-2 bg-red-600/10 text-red-600 rounded-lg text-xs font-black uppercase">Uncheck All</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-black/5 rounded-xl">
+                {Object.keys(SECTION_INFO).map(sec => (
+                  <label key={sec} className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-lg cursor-pointer transition-colors">
+                    <input type="checkbox" className="w-5 h-5 rounded border-slate-300" checked={selectedSections.includes(sec)} onChange={() => toggleSection(sec)} />
+                    <span className="text-xs font-medium">{sec}: {SECTION_INFO[sec]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
-          
           <button onClick={generateRandomSong} className="w-full bg-blue-600 text-white py-3 rounded-2xl font-black shadow-lg shadow-blue-900/20 active:scale-95 transition-transform">Pick Random Song</button>
         </div>
 
-        {/* Queue */}
         <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
           <h2 className="font-black text-lg mb-4">👥 Up Next ({queue.length})</h2>
           <div className="space-y-3">
@@ -467,7 +459,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* History */}
         {sungSongs.length > 0 && (
           <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
             <h2 className="font-black text-sm uppercase opacity-40 tracking-widest mb-3">Recently Sung</h2>
@@ -479,7 +470,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Search */}
         <div className={`rounded-3xl shadow-lg p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
           <h2 className="font-black text-lg mb-4">Add a Song</h2>
           <input 
@@ -497,7 +487,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-
           <div className="border-t pt-4">
             <p className="text-[10px] font-black uppercase opacity-40 mb-2">Unlisted Song</p>
             <div className="flex gap-2">
@@ -506,7 +495,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
