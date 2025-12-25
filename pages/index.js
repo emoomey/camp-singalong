@@ -621,22 +621,43 @@ export default function Home() {
           />
 
           <div className="max-h-60 overflow-y-auto mb-4 space-y-2">
+            
             {filteredSongs.slice(0, 50).map(song => (
-              <div key={song.id} className={`flex justify-between items-center p-3 rounded-lg
-                ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div>
-                  <div className={`font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                    {song.title}{song.has_lyrics && ' 📄'}
-                  </div>
-                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Page {song.page}{song.old_page ? ` (${song.old_page})` : ''}
-                  </div>
-                </div>
-                <button
-                  onClick={() => addToQueue(song)}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-colors
-                    ${isDark ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-700'} text-white`}
-                >
+  <div key={song.id} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${
+    isDark 
+      ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-800' 
+      : 'bg-white border-green-100 hover:bg-green-50/50 shadow-sm'
+  }`}>
+    <div className="min-w-0 flex-1">
+      <div className={`font-bold truncate text-lg ${isDark ? 'text-white' : 'text-green-900'}`}>
+        {song.title}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+        <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+          isDark ? 'bg-slate-700 text-slate-300' : 'bg-green-100 text-green-700'
+        }`}>
+          Sec {song.section}
+        </span>
+        <span className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-green-600'}`}>
+          Page {song.page || '—'} {song.old_page && <span className="opacity-60 text-xs">({song.old_page})</span>}
+        </span>
+        {song.has_lyrics && (
+          <span className="text-[10px] font-bold text-green-500 flex items-center gap-1 uppercase tracking-tighter">
+            <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span> Lyrics
+          </span>
+        )}
+      </div>
+    </div>
+    <button
+      onClick={() => addToQueue(song)}
+      className="ml-4 shrink-0 bg-green-600 hover:bg-green-500 text-white p-3 rounded-xl font-bold transition-all active:scale-90 shadow-lg shadow-green-900/20"
+      title="Add to Queue"
+    >
+      ➕
+    </button>
+  </div>
+))}
+
                   ➕ Add
                 </button>
               </div>
