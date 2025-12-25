@@ -15,9 +15,7 @@ const SECTION_INFO = {
 
 export default function Admin() {
   const [sessionName, setSessionName] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('camp_admin_name') || '';
-    }
+    if (typeof window !== 'undefined') return localStorage.getItem('camp_admin_name') || '';
     return '';
   });
   
@@ -27,15 +25,24 @@ export default function Admin() {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [isDark, setIsDark] = useState(false);
+  const [bulkText, setBulkText] = useState('');
 
+  // Form States
   const [formTitle, setFormTitle] = useState('');
   const [formPage, setFormPage] = useState('');
   const [formOldPage, setFormOldPage] = useState('');
   const [formSection, setFormSection] = useState('A');
   const [formLyrics, setFormLyrics] = useState('');
-  const [formHasLyrics, setFormHasLyrics] = useState(false);
 
-  useEffect(() => { loadSongs(); }, []);
+  useEffect(() => {
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDark(darkModeQuery.matches);
+    const handler = (e) => setIsDark(e.matches);
+    darkModeQuery.addEventListener('change', handler);
+    loadSongs();
+    return () => darkModeQuery.removeEventListener('change', handler);
+  }, []);
 
   const loadSongs = async () => {
     try {
@@ -54,30 +61,17 @@ export default function Admin() {
   const logChange = async (action, song, fieldChanged = null, oldValue = null, newValue = null, fullBefore = null, fullAfter = null) => {
     try {
       const payload = {
-        action: action,
-        song_id: song?.id || null,
-        song_title: song?.title || fieldChanged,
-        field_changed: fieldChanged,
-        old_value: oldValue ? String(oldValue) : null,
-        new_value: newValue ? String(newValue) : null,
-        full_song_before: fullBefore,
-        full_song_after: fullAfter,
-        changed_by: sessionName || 'unknown'
+        action, song_id: song?.id || null, song_title: song?.title || fieldChanged,
+        field_changed: fieldChanged, old_value: oldValue ? String(oldValue) : null,
+        new_value: newValue ? String(newValue) : null, full_song_before: fullBefore,
+        full_song_after: fullAfter, changed_by: sessionName || 'unknown'
       };
-
       await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
         method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-    } catch (error) {
-      console.error('Logging Error:', error);
-    }
+    } catch (error) { console.error('Logging Error:', error); }
   };
 
   const startEdit = (song) => {
@@ -86,9 +80,9 @@ export default function Admin() {
     setFormPage(song.page || '');
     setFormOldPage(song.old_page || '');
     setFormSection(song.section || 'A');
-    setIsAddingNew(false);
     setFormLyrics(song.lyrics_text || '');
-    setFormHasLyrics(song.has_lyrics || false);
+    setIsAddingNew(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const startAddNew = () => {
@@ -97,25 +91,14 @@ export default function Admin() {
     setFormPage('');
     setFormOldPage('');
     setFormSection('A');
-    setIsAddingNew(true);
     setFormLyrics('');
-    setFormHasLyrics(false);
-  };
-
-  const cancelEdit = () => {
-    setEditingSong(null);
-    setIsAddingNew(false);
+    setIsAddingNew(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const saveSong = async () => {
-    if (!sessionName.trim()) {
-      showMessage('❌ Please enter your name at the top of the page before saving.');
-      return;
-    }
-    if (!formTitle.trim()) {
-      showMessage('Title is required');
-      return;
-    }
+    if (!sessionName.trim()) { showMessage('❌ Enter name to save'); return; }
+    if (!formTitle.trim()) { showMessage('Title required'); return; }
     setSaving(true);
     try {
       const newSongData = {
@@ -130,57 +113,42 @@ export default function Admin() {
       if (isAddingNew) {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
           method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json', 'Prefer': 'return=representation'
-          },
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify(newSongData)
         });
         if (response.ok) {
-          const createdSong = await response.json();
-          await logChange('add', createdSong[0], null, null, null, null, createdSong[0]);
+          const created = await response.json();
+          await logChange('add', created[0], null, null, null, null, created[0]);
           showMessage('Song added!');
           setIsAddingNew(false);
-          await loadSongs();
+          loadSongs();
         }
       } else {
         const oldSong = editingSong;
         const changes = [];
         if (oldSong.title !== newSongData.title) changes.push({ field: 'title', old: oldSong.title, new: newSongData.title });
         if (oldSong.page !== newSongData.page) changes.push({ field: 'page', old: oldSong.page, new: newSongData.page });
-        if (oldSong.old_page !== newSongData.old_page) changes.push({ field: 'old_page', old: oldSong.old_page, new: newSongData.old_page });
         if (oldSong.section !== newSongData.section) changes.push({ field: 'section', old: oldSong.section, new: newSongData.section });
 
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
           method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-          },
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(newSongData)
         });
         if (response.ok) {
-          const fullAfter = { ...oldSong, ...newSongData };
-          for (const change of changes) {
-            await logChange('edit', oldSong, change.field, change.old, change.new, oldSong, fullAfter);
-          }
+          for (const change of changes) await logChange('edit', oldSong, change.field, change.old, change.new, oldSong, { ...oldSong, ...newSongData });
           showMessage('Song updated!');
           setEditingSong(null);
-          await loadSongs();
+          loadSongs();
         }
       }
-    } catch (error) {
-      console.error('Error saving:', error);
-    }
+    } catch (error) { console.error('Error saving:', error); }
     setSaving(false);
   };
 
   const deleteSong = async () => {
-    if (!sessionName.trim()) {
-      showMessage('❌ Please enter your name at the top of the page before deleting.');
-      return;
-    }
-    if (!editingSong || !confirm(`Are you sure you want to delete "${editingSong.title}"?`)) return;
+    if (!sessionName.trim()) { showMessage('❌ Name required to delete'); return; }
+    if (!editingSong || !confirm(`Delete "${editingSong.title}"?`)) return;
     setSaving(true);
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
@@ -191,219 +159,160 @@ export default function Admin() {
         await logChange('delete', editingSong, null, null, null, editingSong, null);
         showMessage('Song deleted');
         setEditingSong(null);
-        await loadSongs();
+        loadSongs();
       }
     } catch (error) { console.error('Error deleting:', error); }
     setSaving(false);
   };
 
-  const filteredSongs = allSongs.filter(song => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    
-    // 1. Check Title
-    const matchesTitle = song.title.toLowerCase().includes(searchLower);
-    
-    // 2. Check Page Numbers (New and Old)
-    const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
-                        (song.old_page && song.old_page.toLowerCase().includes(searchLower));
-    
-    // 3. Check Section Letter or Section Name
-    const sectionLetter = song.section ? song.section.toLowerCase() : "";
-    const sectionFullText = SECTION_INFO[song.section] ? SECTION_INFO[song.section].toLowerCase() : "";
-    
-    const matchesSection = sectionLetter === searchLower || sectionFullText.includes(searchLower);
+  const handleBulkAdd = async () => {
+    if (!sessionName.trim()) { showMessage('❌ Name required'); return; }
+    const lines = bulkText.split('\n');
+    const songsToAdd = lines.map(line => {
+      const [title, page, section, old_page] = line.split('\t');
+      return title ? { title, page, section, old_page: old_page || null, has_lyrics: false } : null;
+    }).filter(Boolean);
 
-    return matchesTitle || matchesPage || matchesSection;
+    setSaving(true);
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/songs`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(songsToAdd)
+    });
+    if (response.ok) {
+      await logChange('bulk_add', null, `${songsToAdd.length} songs`, null, null, null, null);
+      setBulkText('');
+      loadSongs();
+      showMessage('Bulk upload complete!');
+    }
+    setSaving(false);
+  };
+
+  const filteredSongs = allSongs.filter(song => {
+    const s = searchTerm.toLowerCase().trim();
+    if (!s) return true;
+    return song.title.toLowerCase().includes(s) || (song.page && song.page.toLowerCase().includes(s)) || (song.section && song.section.toLowerCase() === s);
   });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-50 selection:bg-green-500/30">
-      <div className="max-w-5xl mx-auto px-4 py-8 pb-32">
+    <div className={`min-h-screen pb-20 transition-colors duration-300 ${isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="max-w-5xl mx-auto px-4 py-8">
         
-        {/* 1. Header Section */}
+        {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black flex items-center gap-3 text-white">
-              <span className="text-green-500">🎵</span> Song Admin
+            <h1 className="text-3xl font-black tracking-tighter uppercase italic">
+              Database <span className="text-blue-600">Admin</span>
             </h1>
-            <p className="text-slate-400 mt-1 font-medium">
-              {allSongs.length} songs in database
-            </p>
+            <p className="opacity-50 text-xs font-bold uppercase tracking-widest">{allSongs.length} Songs Loaded</p>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={startAddNew} 
-              className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-lg font-bold transition-all active:scale-95 shadow-lg shadow-green-900/20 focus:ring-4 focus:ring-green-500/50 outline-none"
-            >
-              + Add Song
-            </button>
-            <a 
-              href="/" 
-              className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-slate-200 px-6 py-2.5 rounded-lg font-bold border border-slate-700 transition-all text-center focus:ring-4 focus:ring-slate-500/50 outline-none"
-            >
-              ← Back
-            </a>
+          <div className="flex gap-2">
+            <button onClick={startAddNew} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-sm hover:bg-blue-500 transition-all">+ ADD SONG</button>
+            <a href="/" className={`px-6 py-2.5 rounded-xl font-black text-sm border transition-all ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-200 hover:bg-white'}`}>BACK</a>
           </div>
         </header>
 
-        {/* 2. Sticky Name Bar */}
-        <section 
-          className={`sticky top-4 z-40 p-4 rounded-xl mb-8 border transition-all duration-300 shadow-2xl flex flex-col sm:flex-row items-center gap-4 ${
-            sessionName.trim() 
-              ? 'bg-slate-800/95 backdrop-blur border-slate-700 shadow-black/50' 
-              : 'bg-red-950/90 backdrop-blur border-red-500 shadow-red-900/20'
-          }`}
-        >
-          <label htmlFor="admin-name" className="font-bold flex items-center gap-2 whitespace-nowrap">
-            <span className="text-xl">👤</span> Your Name:
-          </label>
+        {/* Identity Lock Bar */}
+        <div className={`sticky top-4 z-50 p-4 rounded-2xl mb-8 border-2 transition-all shadow-xl flex flex-col sm:flex-row items-center gap-4 ${
+          sessionName.trim() ? (isDark ? 'bg-slate-900 border-blue-900/50' : 'bg-white border-blue-100') : 'bg-red-500 text-white border-red-400'
+        }`}>
+          <span className="font-black text-xs uppercase tracking-widest whitespace-nowrap">Admin Identity:</span>
           <input 
-            id="admin-name"
-            type="text" 
-            placeholder="Type your name to unlock editing..." 
-            value={sessionName} 
-            onChange={(e) => {
-              setSessionName(e.target.value);
-              localStorage.setItem('camp_admin_name', e.target.value);
-            }}
-            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder:text-slate-500 focus:border-green-500 focus:ring-4 focus:ring-green-500/20 outline-none transition-all" 
+            type="text" placeholder="Type name to enable editing..." value={sessionName} 
+            onChange={(e) => { setSessionName(e.target.value); localStorage.setItem('camp_admin_name', e.target.value); }}
+            className={`w-full px-4 py-2 rounded-lg font-bold outline-none transition-all ${isDark ? 'bg-slate-800 text-white focus:ring-2 focus:ring-blue-500' : 'bg-slate-100 text-slate-900 focus:ring-2 focus:ring-blue-500'}`}
           />
-          {!sessionName.trim() && (
-            <span className="text-red-400 font-bold text-sm animate-pulse whitespace-nowrap text-center">
-              ⚠️ Required to save
-            </span>
-          )}
-        </section>
+        </div>
 
-        {/* 3. Status Message */}
-        {message && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-8 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 border border-green-400 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <span>✅</span> {message}
-          </div>
-        )}
-
-        {/* 4. Add/Edit Form Section */}
+        {/* Form Area */}
         {(editingSong || isAddingNew) && (
-          <div className="bg-slate-800 border-2 border-green-500/30 rounded-2xl p-6 mb-12 shadow-2xl animate-in zoom-in-95 duration-200 relative z-30">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-white flex items-center gap-2">
-                {isAddingNew ? '✨ Add New Song' : `✏️ Editing: ${editingSong.title}`}
-              </h2>
-              <button onClick={cancelEdit} className="text-slate-400 hover:text-white transition-colors p-2">✕</button>
+          <div className={`p-6 rounded-3xl shadow-2xl mb-12 border-2 animate-in slide-in-from-top-4 duration-300 ${isDark ? 'bg-slate-900 border-blue-900/50' : 'bg-white border-blue-100'}`}>
+            <div className="flex justify-between mb-6">
+              <h2 className="font-black uppercase tracking-widest text-blue-500">{isAddingNew ? 'New Song' : 'Edit Song'}</h2>
+              <button onClick={() => { setEditingSong(null); setIsAddingNew(false); }} className="opacity-50 hover:opacity-100 font-black">✕</button>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-slate-400 mb-2">Song Title *</label>
-                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none transition-all" />
+                <label className="text-[10px] font-black uppercase opacity-50 mb-1 block">Title</label>
+                <input type="text" value={formTitle} onChange={e => setFormTitle(e.target.value)} className={`w-full p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
               </div>
-
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Category Section</label>
-                <select value={formSection} onChange={(e) => setFormSection(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none transition-all cursor-pointer">
-                  {Object.entries(SECTION_INFO).map(([letter, name]) => (
-                    <option key={letter} value={letter}>{letter}: {name}</option>
-                  ))}
+                <label className="text-[10px] font-black uppercase opacity-50 mb-1 block">Section</label>
+                <select value={formSection} onChange={e => setFormSection(e.target.value)} className={`w-full p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  {Object.entries(SECTION_INFO).map(([k, v]) => <option key={k} value={k}>{k}: {v}</option>)}
                 </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">New Page</label>
-                  <input type="text" placeholder="F-2" value={formPage} onChange={(e) => setFormPage(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none" />
+                  <label className="text-[10px] font-black uppercase opacity-50 mb-1 block">Page</label>
+                  <input type="text" value={formPage} onChange={e => setFormPage(e.target.value)} className={`w-full p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Old Page</label>
-                  <input type="text" placeholder="42" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none" />
+                  <label className="text-[10px] font-black uppercase opacity-50 mb-1 block">Old Page</label>
+                  <input type="text" value={formOldPage} onChange={e => setFormOldPage(e.target.value)} className={`w-full p-3 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
                 </div>
               </div>
-
               <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-slate-400 mb-2">Lyrics Content</label>
-                <textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)} rows={8}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-green-500 outline-none font-mono text-sm" />
+                <label className="text-[10px] font-black uppercase opacity-50 mb-1 block">Lyrics</label>
+                <textarea value={formLyrics} onChange={e => setFormLyrics(e.target.value)} rows={6} className={`w-full p-3 rounded-xl border font-mono text-sm ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-slate-700">
-              <button onClick={saveSong} disabled={saving} className="flex-1 md:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-black shadow-lg shadow-green-900/40">{saving ? 'Saving...' : 'SAVE CHANGES'}</button>
-              <button onClick={cancelEdit} className="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-xl font-bold">Cancel</button>
-              {editingSong && (
-                <button onClick={deleteSong} disabled={saving} className="w-full md:w-auto md:ml-auto bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-6 py-3 rounded-xl font-bold border border-red-900/50">Delete Song</button>
-              )}
+            <div className="flex gap-3 mt-8">
+              <button onClick={saveSong} disabled={saving} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black uppercase tracking-widest hover:bg-blue-500 transition-all disabled:opacity-50">Save</button>
+              {!isAddingNew && <button onClick={deleteSong} className="px-6 bg-red-600/10 text-red-500 py-3 rounded-xl font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Delete</button>}
             </div>
           </div>
         )}
 
-        {/* 5. Search & Song List */}
-        <div className="mb-6 space-y-2">
-          <div className="relative group">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors">🔍</span>
-            <input 
-              type="text" 
-              placeholder="Search by title, page, or section..."
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white focus:bg-slate-800 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all shadow-inner"
-            />
-          </div>
-          <div className="flex justify-between items-center px-2">
-            <p className="text-sm text-slate-400 font-medium">
-              Showing <span className="text-green-400 font-bold">{filteredSongs.length}</span> of {allSongs.length} songs
-            </p>
-            {searchTerm && <button onClick={() => setSearchTerm('')} className="text-sm text-green-500 hover:text-green-400 font-bold">Clear Search</button>}
-          </div>
-        </div>
-
-        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden backdrop-blur-sm shadow-xl mb-12">
-          <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden">
-            {filteredSongs.length > 0 ? (
-              <div className="divide-y divide-slate-700/50">
-                {filteredSongs.map(song => (
-                  <button 
-                    key={song.id} 
-                    onClick={() => startEdit(song)}
-                    className={`w-full text-left p-4 sm:px-6 transition-all flex items-center justify-between group hover:bg-slate-700/40 outline-none focus:bg-slate-700/60 ${
-                      editingSong?.id === song.id ? 'bg-green-500/10 border-l-4 border-l-green-500' : 'border-l-4 border-l-transparent'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-100 group-hover:text-white transition-colors truncate text-lg">
-                        {song.title}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-black bg-slate-700 text-slate-300">Sec {song.section}</span>
-                        <span className="text-sm text-slate-400">Page {song.page || '—'} {song.old_page && <span className="text-slate-500 text-xs">(Old: {song.old_page})</span>}</span>
-                        {song.has_lyrics && (
-                          <span className="text-xs text-green-500 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Lyrics
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="ml-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
-                      <span className="bg-slate-700 text-slate-300 px-3 py-1 rounded-md text-xs font-bold border border-slate-600">EDIT ✏️</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="p-16 text-center text-slate-500">No matches found.</div>
-            )}
+        {/* Main List */}
+        <div className="space-y-4">
+          <input 
+            type="text" placeholder="Search Database..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            className={`w-full p-4 rounded-2xl border-2 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
+          />
+          <div className={`rounded-3xl border overflow-hidden shadow-lg ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <div className="max-h-[500px] overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className={`sticky top-0 z-10 text-[10px] font-black uppercase tracking-widest ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                  <tr>
+                    <th className="px-6 py-3">Title</th>
+                    <th className="px-6 py-3">Section</th>
+                    <th className="px-6 py-3">Page</th>
+                    <th className="px-6 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-100'}`}>
+                  {filteredSongs.map(song => (
+                    <tr key={song.id} className="hover:bg-blue-500/5 transition-colors">
+                      <td className="px-6 py-4 font-bold">{song.title} {song.has_lyrics && '📄'}</td>
+                      <td className="px-6 py-4 opacity-50 font-black">{song.section}</td>
+                      <td className="px-6 py-4 opacity-50">{song.page}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button onClick={() => startEdit(song)} className="text-blue-500 font-black text-xs uppercase tracking-widest">Edit</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        {/* 6. Footer */}
-        <footer className="mt-20 mb-10 text-center border-t border-slate-800 pt-8">
-          <a href="https://docs.google.com/forms/..." target="_blank" rel="noopener noreferrer" 
-            className="inline-flex items-center gap-2 text-slate-500 hover:text-green-400 transition-colors font-medium text-sm">
-            <span>📝</span> Have feedback? Share it with the team
-          </a>
-        </footer>
+        {/* Bulk Upload Section */}
+        <div className={`mt-12 p-6 rounded-3xl border shadow-lg ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <h2 className="font-black uppercase tracking-widest text-xs opacity-50 mb-4">Bulk Upload (TSV)</h2>
+          <textarea 
+            placeholder="Title [TAB] Page [TAB] Section [TAB] OldPage" value={bulkText} onChange={e => setBulkText(e.target.value)}
+            className={`w-full h-32 p-3 rounded-xl border text-xs font-mono mb-4 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
+          />
+          <button onClick={handleBulkAdd} disabled={saving || !bulkText} className="w-full py-3 rounded-xl font-black border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-30">UPLOAD LIST</button>
+        </div>
+
+        {message && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-2xl animate-bounce">
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );
