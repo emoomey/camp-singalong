@@ -561,7 +561,10 @@ if (view === 'display' && showLyrics && currentSong) {
                   {/* Also Include Tags */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider opacity-60">Also Include (even if section not selected)</span>
+                      <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+                        <span className="hidden sm:inline">Also Include (even if section not selected)</span>
+                        <span className="sm:hidden">Also Include</span>
+                      </span>
                       {includeTagIds.length > 0 && (
                         <button onClick={() => setIncludeTagIds([])} className="text-xs text-slate-500 hover:text-slate-400">Clear</button>
                       )}
@@ -575,7 +578,7 @@ if (view === 'display' && showLyrics && currentSong) {
                             onClick={() => setIncludeTagIds(prev => 
                               isSelected ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
                             )}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                            className={`px-3 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
                               isSelected 
                                 ? 'bg-green-600 text-white' 
                                 : isDark 
@@ -593,7 +596,10 @@ if (view === 'display' && showLyrics && currentSong) {
                   {/* Exclude Tags */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider opacity-60">Exclude (even if section selected)</span>
+                      <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+                        <span className="hidden sm:inline">Exclude (even if section selected)</span>
+                        <span className="sm:hidden">Exclude</span>
+                      </span>
                       {excludeTagIds.length > 0 && (
                         <button onClick={() => setExcludeTagIds([])} className="text-xs text-slate-500 hover:text-slate-400">Clear</button>
                       )}
@@ -607,7 +613,7 @@ if (view === 'display' && showLyrics && currentSong) {
                             onClick={() => setExcludeTagIds(prev => 
                               isSelected ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
                             )}
-                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                            className={`px-3 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
                               isSelected 
                                 ? 'bg-red-600 text-white' 
                                 : isDark 

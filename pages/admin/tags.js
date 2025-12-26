@@ -33,6 +33,7 @@ export default function TagManagement() {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'apply'
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [viewingTag, setViewingTag] = useState(null); // Tag currently being viewed (to see its songs)
 
   // Tag form state
   const [editingTag, setEditingTag] = useState(null);
@@ -85,9 +86,30 @@ export default function TagManagement() {
     return tags.filter(t => tagIds.includes(t.id));
   };
 
+  // Get songs for a specific tag
+  const getSongsForTag = (tagId) => {
+    const songIds = songTags.filter(st => st.tag_id === tagId).map(st => st.song_id);
+    return songs.filter(s => songIds.includes(s.id)).sort((a, b) => a.title.localeCompare(b.title));
+  };
+
   // Check if song has a specific tag
   const songHasTag = (songId, tagId) => {
     return songTags.some(st => st.song_id === songId && st.tag_id === tagId);
+  };
+
+  // Remove a single song from a tag
+  const removeSongFromTag = async (songId, tagId) => {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/song_tags?song_id=eq.${songId}&tag_id=eq.${tagId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      showMessage('✅ Song removed from tag');
+      await loadData();
+    } catch (error) {
+      console.error('Error removing song from tag:', error);
+      showMessage('❌ Error removing song');
+    }
   };
 
   // ============ TAG MANAGEMENT ============
@@ -476,33 +498,74 @@ export default function TagManagement() {
                 ) : (
                   tags.map(tag => {
                     const songCount = songTags.filter(st => st.tag_id === tag.id).length;
+                    const isViewing = viewingTag?.id === tag.id;
                     return (
-                      <div key={tag.id} className="p-4 flex items-center justify-between hover:bg-slate-700/30">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-white">{tag.name}</span>
-                            <span className="text-xs text-slate-500">
-                              {songCount} song{songCount !== 1 ? 's' : ''}
-                            </span>
+                      <div key={tag.id}>
+                        <div className={`p-4 hover:bg-slate-700/30 ${isViewing ? 'bg-slate-700/50' : ''}`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-white">{tag.name}</span>
+                                <span className="text-xs text-slate-500">
+                                  {songCount} song{songCount !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              {tag.description && (
+                                <div className="text-sm text-slate-400 mt-1">{tag.description}</div>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setViewingTag(isViewing ? null : tag)}
+                                className={`flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-sm font-bold rounded-lg transition-colors ${
+                                  isViewing 
+                                    ? 'bg-blue-600 text-white' 
+                                    : 'bg-blue-900/30 text-blue-400 hover:text-blue-300 hover:bg-blue-900/50'
+                                }`}
+                              >
+                                {isViewing ? 'Hide' : 'View'}
+                              </button>
+                              <button
+                                onClick={() => startEditTag(tag)}
+                                className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-sm font-bold text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => deleteTag(tag)}
+                                className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-sm font-bold text-red-400 bg-red-900/30 hover:bg-red-900/50 rounded-lg transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
-                          {tag.description && (
-                            <div className="text-sm text-slate-400 mt-1">{tag.description}</div>
-                          )}
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEditTag(tag)}
-                            className="px-3 py-1.5 text-sm font-bold text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteTag(tag)}
-                            className="px-3 py-1.5 text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {/* Expanded songs list for this tag */}
+                        {isViewing && (
+                          <div className="bg-slate-900/50 border-t border-slate-700 p-4">
+                            <div className="text-sm text-slate-400 mb-3">Songs with "{tag.name}" tag:</div>
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                              {getSongsForTag(tag.id).length === 0 ? (
+                                <div className="text-slate-500 text-sm italic">No songs have this tag yet</div>
+                              ) : (
+                                getSongsForTag(tag.id).map(song => (
+                                  <div key={song.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 group">
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-white text-sm truncate block">{song.title}</span>
+                                      <span className="text-slate-500 text-xs">Section {song.section}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => removeSongFromTag(song.id, tag.id)}
+                                      className="ml-2 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 bg-red-900/30 hover:bg-red-900/50 rounded transition-all"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -521,12 +584,20 @@ export default function TagManagement() {
               
               {/* Section Filter */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-bold text-slate-400">Sections</label>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSelectedSections(Object.keys(SECTION_INFO))} className="text-xs text-green-500 hover:text-green-400">Select All</button>
-                    <button onClick={() => setSelectedSections([])} className="text-xs text-slate-400 hover:text-slate-300">Clear</button>
-                  </div>
+                <label className="text-sm font-bold text-slate-400 block mb-2">Sections</label>
+                <div className="flex gap-2 mb-4">
+                  <button 
+                    onClick={() => setSelectedSections(Object.keys(SECTION_INFO))} 
+                    className="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all active:scale-95 bg-slate-700 border-slate-600 hover:bg-slate-600"
+                  >
+                    Select All
+                  </button>
+                  <button 
+                    onClick={() => setSelectedSections([])} 
+                    className="flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all active:scale-95 bg-slate-700 border-slate-600 hover:bg-slate-600"
+                  >
+                    Clear All
+                  </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {Object.entries(SECTION_INFO).map(([letter, name]) => (
@@ -581,37 +652,46 @@ export default function TagManagement() {
             {/* Bulk Actions */}
             <div className="bg-slate-800 rounded-2xl p-6 mb-6">
               <h3 className="font-bold text-lg mb-4">Bulk Actions</h3>
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400">{selectedSongs.length} selected</span>
-                  <button onClick={selectAllVisible} className="text-xs text-green-500 hover:text-green-400">Select All Visible ({filteredSongs.length})</button>
-                  <button onClick={clearSelection} className="text-xs text-slate-400 hover:text-slate-300">Clear</button>
-                </div>
-                <div className="flex-1" />
+              
+              {/* Selection info */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-sm text-slate-400">{selectedSongs.length} selected</span>
+                <button onClick={selectAllVisible} className="text-xs text-green-500 hover:text-green-400 bg-green-900/20 px-2 py-1 rounded">
+                  Select All ({filteredSongs.length})
+                </button>
+                <button onClick={clearSelection} className="text-xs text-slate-400 hover:text-slate-300 bg-slate-700 px-2 py-1 rounded">
+                  Clear
+                </button>
+              </div>
+              
+              {/* Tag selection and action buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
                 <select
                   value={applyTagId}
                   onChange={(e) => setApplyTagId(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white cursor-pointer"
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white cursor-pointer"
                 >
                   <option value="">Select tag...</option>
                   {tags.map(tag => (
                     <option key={tag.id} value={tag.id}>{tag.name}</option>
                   ))}
                 </select>
-                <button
-                  onClick={applyTagToSelected}
-                  disabled={!applyTagId || selectedSongs.length === 0}
-                  className="bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold"
-                >
-                  + Apply Tag
-                </button>
-                <button
-                  onClick={removeTagFromSelected}
-                  disabled={!applyTagId || selectedSongs.length === 0}
-                  className="bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold"
-                >
-                  − Remove Tag
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={applyTagToSelected}
+                    disabled={!applyTagId || selectedSongs.length === 0}
+                    className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-bold"
+                  >
+                    + Apply
+                  </button>
+                  <button
+                    onClick={removeTagFromSelected}
+                    disabled={!applyTagId || selectedSongs.length === 0}
+                    className="flex-1 sm:flex-none bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-bold"
+                  >
+                    − Remove
+                  </button>
+                </div>
               </div>
             </div>
 
