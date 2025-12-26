@@ -145,11 +145,12 @@ export default function Admin() {
         }
       } else {
         const oldSong = editingSong;
-        const changes = [];
-        if (oldSong.title !== newSongData.title) changes.push({ field: 'title', old: oldSong.title, new: newSongData.title });
-        if (oldSong.page !== newSongData.page) changes.push({ field: 'page', old: oldSong.page, new: newSongData.page });
-        if (oldSong.old_page !== newSongData.old_page) changes.push({ field: 'old_page', old: oldSong.old_page, new: newSongData.old_page });
-        if (oldSong.section !== newSongData.section) changes.push({ field: 'section', old: oldSong.section, new: newSongData.section });
+const changes = [];
+if (oldSong.title !== newSongData.title) changes.push({ field: 'title', old: oldSong.title, new: newSongData.title });
+if (oldSong.page !== newSongData.page) changes.push({ field: 'page', old: oldSong.page, new: newSongData.page });
+if (oldSong.old_page !== newSongData.old_page) changes.push({ field: 'old_page', old: oldSong.old_page, new: newSongData.old_page });
+if (oldSong.section !== newSongData.section) changes.push({ field: 'section', old: oldSong.section, new: newSongData.section });
+if ((oldSong.lyrics_text || '') !== (newSongData.lyrics_text || '')) changes.push({ field: 'lyrics_text', old: oldSong.lyrics_text ? '[had lyrics]' : '[no lyrics]', new: newSongData.lyrics_text ? '[has lyrics]' : '[no lyrics]' });
 
         const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${editingSong.id}`, {
           method: 'PATCH',
