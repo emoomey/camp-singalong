@@ -424,11 +424,11 @@ if (view === 'display' && showLyrics && currentSong) {
       <div className={`min-h-screen ${isDark ? 'bg-slate-950' : 'bg-green-900'} text-white flex`}>
         
         {/* Left Sidebar - Controls & Options */}
-        <div className="w-48 tv:w-64 shrink-0 p-4 tv:p-6 flex flex-col border-r border-white/10">
+        <div className="w-56 tv:w-72 shrink-0 p-4 tv:p-6 flex flex-col border-r border-white/10">
           {/* Room Code */}
-          <div className="bg-white/10 p-4 tv:p-6 rounded-xl border border-white/10 mb-4">
+          <div className="bg-white/10 p-4 tv:p-6 rounded-xl border border-white/10 mb-4 overflow-hidden">
             <div className="text-xs tv:text-sm uppercase font-bold opacity-60 mb-1">Room Code</div>
-            <div className="text-3xl tv:text-5xl font-black">{roomCode}</div>
+            <div className="text-2xl tv:text-4xl font-black truncate">{roomCode}</div>
           </div>
           
           {/* Control Button */}
@@ -453,14 +453,14 @@ if (view === 'display' && showLyrics && currentSong) {
         </div>
         
         {/* Right Main Content - Now Singing & Queue */}
-        <div className="flex-1 flex flex-col p-6 tv:p-12">
+        <div className="flex-1 flex flex-col p-6 tv:p-12 overflow-hidden">
           
           {/* Now Singing Section */}
           <div className="flex-1 flex flex-col justify-center">
-            <h1 className="text-3xl tv:text-5xl font-black mb-4 opacity-40 uppercase tracking-widest">Now Singing</h1>
+            <h1 className="text-3xl tv:text-5xl font-black mb-2 opacity-40 uppercase tracking-widest">Now Singing</h1>
             {currentSong ? (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="text-5xl tv:text-8xl font-black mb-4 leading-tight">
+                <div className="text-5xl tv:text-8xl font-black mb-2 leading-tight">
                   {currentSong.title} {currentSong.has_lyrics && '📄'}
                 </div>
                 <div className="text-3xl tv:text-6xl text-green-400 font-bold">
@@ -484,12 +484,12 @@ if (view === 'display' && showLyrics && currentSong) {
               <h2 className="text-2xl tv:text-4xl font-bold mb-4 opacity-40">Up Next</h2>
               <div className="space-y-3">
                 {queue.slice(0, 5).map((song, i) => (
-                  <div key={song.id} className="flex justify-between items-center text-2xl tv:text-4xl font-medium">
-                    <div className="truncate">
+                  <div key={song.id} className="flex justify-between items-start text-2xl tv:text-4xl font-medium gap-4">
+                    <div className="truncate min-w-0">
                       <span className="opacity-50 mr-3">{i+1}.</span>
                       {song.song_title} {song.has_lyrics && '📄'}
                     </div>
-                    <div className="text-green-400 ml-4 whitespace-nowrap">Page {song.song_page}</div>
+                    <div className="text-green-400 shrink-0 text-right">Page {song.song_page}</div>
                   </div>
                 ))}
                 {queue.length > 5 && (
