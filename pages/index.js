@@ -63,6 +63,14 @@ export default function Home() {
   
   // Expanded notes tracking (which note types are currently shown)
   const [expandedNotes, setExpandedNotes] = useState([]);
+  
+  // Group data
+  const [songGroups, setSongGroups] = useState([]);
+  const [songGroupMembers, setSongGroupMembers] = useState([]);
+  const [songbookEntries, setSongbookEntries] = useState([]);
+  
+  // Group prompt modal
+  const [groupPrompt, setGroupPrompt] = useState(null); // { song, groups } when showing prompt
 
   useEffect(() => {
     const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -82,7 +90,7 @@ export default function Home() {
 
   const loadSongs = async () => {
     try {
-      const [songsRes, versionsRes, notesRes] = await Promise.all([
+      const [songsRes, versionsRes, notesRes, groupsRes, membersRes, entriesRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         }),
@@ -91,11 +99,23 @@ export default function Home() {
         }),
         fetch(`${SUPABASE_URL}/rest/v1/song_notes?select=*`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_groups?select=*`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_group_members?select=*&order=position_in_group.asc`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?select=*`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         })
       ]);
       setAllSongs(await songsRes.json());
       setSongVersions(await versionsRes.json());
       setSongNotes(await notesRes.json());
+      setSongGroups(await groupsRes.json());
+      setSongGroupMembers(await membersRes.json());
+      setSongbookEntries(await entriesRes.json());
     } catch (error) { console.error('Error loading songs:', error); }
   };
 
@@ -108,6 +128,25 @@ export default function Home() {
   // Check if a song has any version with lyrics
   const songHasLyrics = (songId) => {
     return songVersions.some(v => v.song_id === songId && v.lyrics_content);
+  };
+
+  // Get groups that a song belongs to
+  const getGroupsForSong = (songId) => {
+    const memberEntries = songGroupMembers.filter(m => m.song_id === songId);
+    return memberEntries.map(m => songGroups.find(g => g.id === m.group_id)).filter(Boolean);
+  };
+
+  // Get members of a group (in order)
+  const getGroupMembers = (groupId) => {
+    return songGroupMembers
+      .filter(m => m.group_id === groupId)
+      .sort((a, b) => a.position_in_group - b.position_in_group);
+  };
+
+  // Get page info for a group
+  const getGroupPage = (groupId) => {
+    const entry = songbookEntries.find(e => e.song_group_id === groupId);
+    return entry ? { page: entry.page, section: entry.section, old_page: entry.old_page } : null;
   };
 
   // Get notes for a song by type
@@ -240,7 +279,29 @@ export default function Home() {
     } catch (error) { console.error('Error updating room:', error); }
   };
 
-  const addToQueue = async (song, requester = 'Someone') => {
+  // Try to add a song - checks for groups first
+  const tryAddToQueue = (song, requester = 'Someone') => {
+    // Check if already in queue
+    if (queue.some(s => s.song_title === song.title)) return;
+    
+    // Check if already sung - prompt for confirmation
+    if (sungSongs.some(s => s.title === song.title)) {
+      if (!confirm(`"${song.title}" has already been sung tonight. Add it again?`)) return;
+    }
+    
+    // Check if song is in any groups
+    const groups = getGroupsForSong(song.id);
+    if (groups.length > 0) {
+      // Show group prompt
+      setGroupPrompt({ song, groups });
+    } else {
+      // No groups, add directly
+      addSongToQueue(song, requester);
+    }
+  };
+
+  // Add a single song to queue (internal)
+  const addSongToQueue = async (song, requester = 'Someone') => {
     if (queue.some(s => s.song_title === song.title)) return;
     const maxPosition = queue.length > 0 ? Math.max(...queue.map(s => s.position)) : -1;
     const version = getDefaultVersion(song.id);
@@ -260,17 +321,81 @@ export default function Home() {
           position: maxPosition + 1,
           old_page: song.old_page || null,
           has_lyrics: !!version?.lyrics_content,
-          lyrics_text: version?.lyrics_content || null
+          lyrics_text: version?.lyrics_content || null,
+          is_group: false,
+          group_id: null
         })
       });
     } catch (error) { console.error('Error adding to queue:', error); }
     await loadRoomData();
   };
 
+  // Add a group to queue
+  const addGroupToQueue = async (group, requester = 'Someone') => {
+    // Check if group already in queue
+    if (queue.some(s => s.group_id === group.id)) return;
+    
+    const maxPosition = queue.length > 0 ? Math.max(...queue.map(s => s.position)) : -1;
+    const pageInfo = getGroupPage(group.id);
+    const members = getGroupMembers(group.id);
+    
+    // Build combined lyrics from fragment_lyrics
+    const combinedLyrics = members.map(m => {
+      const song = allSongs.find(s => s.id === m.song_id);
+      const songName = song?.title || 'Unknown';
+      const lyrics = m.fragment_lyrics || '';
+      return `═══ ${songName} ═══\n${lyrics}`;
+    }).join('\n\n');
+    
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/queue`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          room_id: roomCode,
+          song_title: group.group_name,
+          song_page: pageInfo?.page || 'N/A',
+          song_section: pageInfo?.section || 'S',
+          requester: requester,
+          position: maxPosition + 1,
+          old_page: pageInfo?.old_page || null,
+          has_lyrics: true,
+          lyrics_text: combinedLyrics,
+          is_group: true,
+          group_id: group.id,
+          group_instructions: group.instructions
+        })
+      });
+    } catch (error) { console.error('Error adding group to queue:', error); }
+    setGroupPrompt(null);
+    await loadRoomData();
+  };
+
+  // Handle group prompt selection
+  const handleGroupPromptChoice = (choice, group = null) => {
+    if (choice === 'song') {
+      addSongToQueue(groupPrompt.song, 'Someone');
+    } else if (choice === 'group' && group) {
+      addGroupToQueue(group, 'Someone');
+    }
+    setGroupPrompt(null);
+  };
+
+  // Legacy function name for compatibility
+  const addToQueue = async (song, requester = 'Someone') => {
+    tryAddToQueue(song, requester);
+  };
+
   const generateRandomSong = () => {
     const availableSongs = allSongs.filter(song => {
       // Already sung? Skip
       if (sungSongs.some(s => s.title === song.title)) return false;
+      
+      // Already in queue? Skip
+      if (queue.some(s => s.song_title === song.title)) return false;
       
       // Check if song should be EXCLUDED (exclude tags take priority)
       if (songHasAnyTag(song.id, excludeTagIds)) return false;
@@ -283,7 +408,9 @@ export default function Home() {
       return matchesSection || matchesIncludeTag;
     });
     if (availableSongs.length === 0) { alert('No songs available with current filters!'); return; }
-    addToQueue(availableSongs[Math.floor(Math.random() * availableSongs.length)], 'Random');
+    const randomSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
+    // For random, skip the group prompt and add song directly
+    addSongToQueue(randomSong, 'Random');
   };
 
   const playSong = async (song) => {
@@ -361,6 +488,9 @@ export default function Home() {
   };
 
   const filteredSongs = allSongs.filter(song => {
+    // Hide songs already in queue
+    if (queue.some(s => s.song_title === song.title)) return false;
+    
     // First apply section/tag filters (same as random generator)
     if (songHasAnyTag(song.id, excludeTagIds)) return false;
     const matchesSection = selectedSections.includes(song.section);
@@ -886,6 +1016,59 @@ if (view === 'display' && showLyrics && currentSong) {
   // Control View
   return (
     <div className={`min-h-screen p-2 sm:p-4 pb-20 ${isDark ? 'bg-slate-950 text-white' : 'bg-green-50 text-slate-900'}`}>
+      
+      {/* Group Prompt Modal */}
+      {groupPrompt && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className={`max-w-md w-full rounded-2xl p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+            <h3 className="text-xl font-bold mb-2">Add to Queue</h3>
+            <p className="text-sm opacity-70 mb-4">
+              "{groupPrompt.song.title}" is part of {groupPrompt.groups.length === 1 ? 'a song group' : 'multiple song groups'}. 
+              How would you like to add it?
+            </p>
+            
+            <div className="space-y-3">
+              {/* Option: Add just this song */}
+              <button
+                onClick={() => handleGroupPromptChoice('song')}
+                className={`w-full p-4 rounded-xl text-left border-2 transition-colors ${isDark ? 'border-slate-700 hover:border-slate-500' : 'border-gray-200 hover:border-gray-400'}`}
+              >
+                <div className="font-bold">Just this song</div>
+                <div className="text-sm opacity-60">{groupPrompt.song.title} • Page {groupPrompt.song.page}</div>
+              </button>
+              
+              {/* Option: Add as group(s) */}
+              {groupPrompt.groups.map(group => {
+                const pageInfo = getGroupPage(group.id);
+                const members = getGroupMembers(group.id);
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => handleGroupPromptChoice('group', group)}
+                    className="w-full p-4 rounded-xl text-left border-2 border-green-600 bg-green-600/10 hover:bg-green-600/20 transition-colors"
+                  >
+                    <div className="font-bold text-green-600">{group.group_name}</div>
+                    <div className="text-sm opacity-60">
+                      Page {pageInfo?.page || 'N/A'} • {members.length} songs
+                    </div>
+                    <div className="text-xs opacity-50 mt-1">
+                      {members.map(m => allSongs.find(s => s.id === m.song_id)?.title).filter(Boolean).join(', ')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setGroupPrompt(null)}
+              className="w-full mt-4 py-2 text-sm opacity-60 hover:opacity-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-4xl mx-auto space-y-4">
         
         {/* Header Section */}
