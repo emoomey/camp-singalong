@@ -28,6 +28,8 @@ export default function TagManagement() {
   const [tags, setTags] = useState([]);
   const [songs, setSongs] = useState([]);
   const [songTags, setSongTags] = useState([]); // All song-tag relationships
+  const [songVersions, setSongVersions] = useState([]); // For lyrics
+  const [expandedLyrics, setExpandedLyrics] = useState({}); // { songId: true/false }
 
   // UI state
   const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'apply'
@@ -55,7 +57,7 @@ export default function TagManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [tagsRes, songsRes, songTagsRes] = await Promise.all([
+      const [tagsRes, songsRes, songTagsRes, versionsRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/tags?select=*&order=name.asc`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         }),
@@ -64,11 +66,15 @@ export default function TagManagement() {
         }),
         fetch(`${SUPABASE_URL}/rest/v1/song_tags?select=*`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         })
       ]);
       setTags(await tagsRes.json());
       setSongs(await songsRes.json());
       setSongTags(await songTagsRes.json());
+      setSongVersions(await versionsRes.json());
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -95,6 +101,19 @@ export default function TagManagement() {
   // Check if song has a specific tag
   const songHasTag = (songId, tagId) => {
     return songTags.some(st => st.song_id === songId && st.tag_id === tagId);
+  };
+
+  // Get lyrics for a song
+  const getSongLyrics = (songId) => {
+    const version = songVersions.find(v => v.song_id === songId && v.is_default_singalong) 
+      || songVersions.find(v => v.song_id === songId);
+    return version?.lyrics_content || null;
+  };
+
+  // Toggle lyrics expansion for a song
+  const toggleLyrics = (songId, e) => {
+    e.stopPropagation(); // Don't trigger song selection
+    setExpandedLyrics(prev => ({ ...prev, [songId]: !prev[songId] }));
   };
 
   // Remove a single song from a tag
@@ -707,37 +726,68 @@ export default function TagManagement() {
                   filteredSongs.map(song => {
                     const songTagList = getTagsForSong(song.id);
                     const isSelected = selectedSongs.includes(song.id);
+                    const lyrics = getSongLyrics(song.id);
+                    const isLyricsExpanded = expandedLyrics[song.id];
                     return (
                       <div
                         key={song.id}
-                        onClick={() => toggleSongSelection(song.id)}
-                        className={`p-4 cursor-pointer transition-colors ${
-                          isSelected ? 'bg-green-900/30' : 'hover:bg-slate-700/30'
+                        className={`transition-colors ${
+                          isSelected ? 'bg-green-900/30' : ''
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="mt-1 rounded"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-white">{song.title}</div>
-                            <div className="text-sm text-slate-400">
-                              Section {song.section} • Page {song.page || '—'}
-                            </div>
-                            {songTagList.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {songTagList.map(tag => (
-                                  <span key={tag.id} className="text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-300">
-                                    {tag.name}
-                                  </span>
-                                ))}
+                        <div
+                          onClick={() => toggleSongSelection(song.id)}
+                          className={`p-4 cursor-pointer ${!isSelected && 'hover:bg-slate-700/30'}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="mt-1 rounded"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white">{song.title}</span>
+                                {lyrics && (
+                                  <button
+                                    onClick={(e) => toggleLyrics(song.id, e)}
+                                    className={`text-xs px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
+                                      isLyricsExpanded 
+                                        ? 'bg-blue-600 text-white' 
+                                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                    }`}
+                                  >
+                                    📄 {isLyricsExpanded ? '▲' : '▼'}
+                                  </button>
+                                )}
+                                {!lyrics && song.has_lyrics && (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-500">📄</span>
+                                )}
                               </div>
-                            )}
+                              <div className="text-sm text-slate-400">
+                                Section {song.section} • Page {song.page || '—'}
+                              </div>
+                              {songTagList.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {songTagList.map(tag => (
+                                    <span key={tag.id} className="text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-300">
+                                      {tag.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        {/* Expanded Lyrics */}
+                        {isLyricsExpanded && lyrics && (
+                          <div className="px-4 pb-4 ml-10">
+                            <div className="bg-slate-900/80 border border-slate-700 rounded-lg p-4 text-sm text-slate-300 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                              {lyrics}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
