@@ -421,65 +421,84 @@ if (view === 'display' && showLyrics && currentSong) {
   // Display View - Main (TV Safe)
   if (view === 'display') {
     return (
-      <div className={`min-h-screen tv:p-20 ${isDark ? 'bg-slate-950' : 'bg-green-900'} text-white flex flex-col`}>
-        <div className="flex justify-between items-start p-4 tv:max-w-6xl tv:mx-auto w-full">
-          <div className="bg-white/10 p-3 rounded-xl border border-white/10">
-            <div className="text-[10px] uppercase font-bold opacity-60">Room Code</div>
-            <div className="text-2xl font-black">{roomCode}</div>
+      <div className={`min-h-screen ${isDark ? 'bg-slate-950' : 'bg-green-900'} text-white flex`}>
+        
+        {/* Left Sidebar - Controls & Options */}
+        <div className="w-48 tv:w-64 shrink-0 p-4 tv:p-6 flex flex-col border-r border-white/10">
+          {/* Room Code */}
+          <div className="bg-white/10 p-4 tv:p-6 rounded-xl border border-white/10 mb-4">
+            <div className="text-xs tv:text-sm uppercase font-bold opacity-60 mb-1">Room Code</div>
+            <div className="text-3xl tv:text-5xl font-black">{roomCode}</div>
           </div>
-          <button onClick={() => setView('control')} className="bg-white/10 px-4 py-2 rounded-xl text-sm font-bold">📱 Control</button>
+          
+          {/* Control Button */}
+          <button 
+            onClick={() => setView('control')} 
+            className="bg-white/10 hover:bg-white/20 px-4 py-3 tv:py-4 rounded-xl text-base tv:text-xl font-bold transition-colors mb-4"
+          >
+            📱 Control
+          </button>
+          
+          {/* Lyrics Button (when available) */}
+          {currentSong?.has_lyrics && (
+            <button 
+              onClick={() => setShowLyrics(true)}
+              className="bg-green-600 hover:bg-green-500 px-4 py-3 tv:py-4 rounded-xl text-base tv:text-xl font-bold transition-colors mb-4"
+            >
+              📄 Lyrics
+            </button>
+          )}
+          
+          {/* Future: Notes/History expand buttons will go here */}
         </div>
-
-        <div className="flex-1 flex flex-col justify-center items-center text-center px-6 tv:max-w-6xl tv:mx-auto w-full">
-          <h1 className="text-4xl tv:text-6xl font-black mb-6 opacity-40 uppercase tracking-widest">Now Singing</h1>
-          {currentSong ? (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="text-6xl tv:text-9xl font-black mb-6 leading-tight">
-                {currentSong.title} {currentSong.has_lyrics && '📄'}
-              </div>
-              <div className="text-4xl tv:text-7xl text-green-400 font-bold">
-                Page {currentSong.page} {currentSong.old_page && `(${currentSong.old_page})`}
-              </div>
-{currentSong.has_lyrics && (
-  <button 
-    onClick={() => setShowLyrics(true)}
-    className="mt-6 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold text-lg transition-all"
-  >
-    📄 View Lyrics
-  </button>
-)}
-
-              {showLyricsOnTV && currentSong.lyrics_text && (
-                <div className="mt-12 text-2xl tv:text-4xl leading-relaxed text-gray-200 max-w-4xl mx-auto whitespace-pre-wrap">
-                  {currentSong.lyrics_text}
+        
+        {/* Right Main Content - Now Singing & Queue */}
+        <div className="flex-1 flex flex-col p-6 tv:p-12">
+          
+          {/* Now Singing Section */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h1 className="text-3xl tv:text-5xl font-black mb-4 opacity-40 uppercase tracking-widest">Now Singing</h1>
+            {currentSong ? (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="text-5xl tv:text-8xl font-black mb-4 leading-tight">
+                  {currentSong.title} {currentSong.has_lyrics && '📄'}
                 </div>
-              )}
+                <div className="text-3xl tv:text-6xl text-green-400 font-bold">
+                  Page {currentSong.page} {currentSong.old_page && `(${currentSong.old_page})`}
+                </div>
+
+                {showLyricsOnTV && currentSong.lyrics_text && (
+                  <div className="mt-8 text-xl tv:text-3xl leading-relaxed text-gray-200 max-w-4xl whitespace-pre-wrap">
+                    {currentSong.lyrics_text}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-3xl tv:text-5xl opacity-30 italic">Pick a song to begin...</div>
+            )}
+          </div>
+
+          {/* Up Next Queue */}
+          {queue.length > 0 && (
+            <div className="mt-auto pt-6 border-t border-white/10">
+              <h2 className="text-2xl tv:text-4xl font-bold mb-4 opacity-40">Up Next</h2>
+              <div className="space-y-3">
+                {queue.slice(0, 5).map((song, i) => (
+                  <div key={song.id} className="flex justify-between items-center text-2xl tv:text-4xl font-medium">
+                    <div className="truncate">
+                      <span className="opacity-50 mr-3">{i+1}.</span>
+                      {song.song_title} {song.has_lyrics && '📄'}
+                    </div>
+                    <div className="text-green-400 ml-4 whitespace-nowrap">Page {song.song_page}</div>
+                  </div>
+                ))}
+                {queue.length > 5 && (
+                  <div className="text-xl opacity-40 italic mt-2">+ {queue.length - 5} more songs</div>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="text-4xl opacity-30 italic">Pick a song to begin...</div>
           )}
         </div>
-
-        {/* Vertical Queue for TV */}
-        {queue.length > 0 && (
-          <div className="p-8 w-full max-w-5xl mx-auto mt-auto mb-10">
-            <h2 className="text-3xl tv:text-5xl font-bold mb-6 opacity-40 border-b border-white/10 pb-3">Up Next</h2>
-            <div className="space-y-4">
-               {queue.slice(0, 5).map((song, i) => (
-                 <div key={song.id} className="flex justify-between items-center text-4xl tv:text-6xl font-medium">
-                   <div className="truncate">
-                    <span className="opacity-50 mr-4">{i+1}.</span>
-                    {song.song_title} {song.has_lyrics && '📄'}
-                   </div>
-                   <div className="text-green-400 ml-4 whitespace-nowrap">Page {song.song_page}</div>
-                 </div>
-               ))}
-               {queue.length > 5 && (
-                 <div className="text-2xl opacity-40 italic mt-3">+ {queue.length - 5} more songs</div>
-               )}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
