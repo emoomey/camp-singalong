@@ -572,10 +572,34 @@ export default function Home() {
 
   // Display View - Full Screen Lyrics (with sidebar on large screens, column on mobile)
 if (view === 'display' && showLyrics && currentSong) {
-  const currentSongFull = getCurrentSongFull();
-  const songId = currentSongFull?.id;
-  const currentNotes = songId ? getNotesForSong(songId) : [];
-  const yearWritten = currentSongFull?.year_written;
+  const isGroup = currentSong.is_group;
+  const groupInstructions = currentSong.group_instructions;
+  
+  // For groups, get notes and years from all member songs
+  // For single songs, get from the single song
+  let currentNotes = [];
+  let yearsWritten = [];
+  
+  if (isGroup && currentSong.group_id) {
+    const members = getGroupMembers(currentSong.group_id);
+    members.forEach(m => {
+      const memberSong = allSongs.find(s => s.id === m.song_id);
+      if (memberSong) {
+        const notes = getNotesForSong(memberSong.id);
+        notes.forEach(n => currentNotes.push({ ...n, songTitle: memberSong.title }));
+        if (memberSong.year_written) {
+          yearsWritten.push({ title: memberSong.title, year: memberSong.year_written });
+        }
+      }
+    });
+  } else {
+    const currentSongFull = getCurrentSongFull();
+    const songId = currentSongFull?.id;
+    currentNotes = songId ? getNotesForSong(songId) : [];
+    if (currentSongFull?.year_written) {
+      yearsWritten.push({ title: currentSongFull.title, year: currentSongFull.year_written });
+    }
+  }
   
   // Group notes by type
   const instructionNotes = currentNotes.filter(n => INSTRUCTION_TYPES.includes(n.note_type));
@@ -614,6 +638,14 @@ if (view === 'display' && showLyrics && currentSong) {
           {/* Instruction Note Buttons (above lyrics) */}
           {instructionTypes.length > 0 && (
             <div className="space-y-2 mb-4">
+              {/* Group instructions (if this is a group) */}
+              {isGroup && groupInstructions && (
+                <div className="p-4 bg-green-900/30 rounded-xl text-green-100 text-sm mb-4 border border-green-600/30">
+                  <div className="font-bold text-green-400 mb-2">Group Instructions</div>
+                  <p className="whitespace-pre-wrap">{groupInstructions}</p>
+                </div>
+              )}
+              
               {instructionTypes.map(noteType => (
                 <div key={noteType}>
                   <button
@@ -628,8 +660,11 @@ if (view === 'display' && showLyrics && currentSong) {
                   </button>
                   {expandedNotes.includes(noteType) && (
                     <div className="mt-2 p-4 bg-yellow-900/30 rounded-xl text-yellow-100 text-sm">
-                      {getNotesByType(songId, noteType).map((note, i) => (
-                        <p key={i} className={i > 0 ? 'mt-2' : ''}>{note.note_content}</p>
+                      {currentNotes.filter(n => n.note_type === noteType).map((note, i) => (
+                        <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                          {note.songTitle && isGroup && <span className="text-yellow-400 font-bold">{note.songTitle}: </span>}
+                          {note.note_content}
+                        </p>
                       ))}
                     </div>
                   )}
@@ -651,10 +686,16 @@ if (view === 'display' && showLyrics && currentSong) {
               </div>
             )}
             
-            {/* Year written */}
-            {yearWritten && (
+            {/* Year(s) written */}
+            {yearsWritten.length > 0 && (
               <div className="mt-6 text-sm text-gray-400 italic">
-                Written: {yearWritten}
+                {yearsWritten.length === 1 ? (
+                  `Written: ${yearsWritten[0].year}`
+                ) : (
+                  yearsWritten.map((y, i) => (
+                    <span key={i}>{i > 0 && ' • '}{y.title}: {y.year}</span>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -676,8 +717,11 @@ if (view === 'display' && showLyrics && currentSong) {
                   </button>
                   {expandedNotes.includes(noteType) && (
                     <div className="mt-2 p-4 bg-blue-900/30 rounded-xl text-blue-100 text-sm">
-                      {getNotesByType(songId, noteType).map((note, i) => (
-                        <p key={i} className={i > 0 ? 'mt-2' : ''}>{note.note_content}</p>
+                      {currentNotes.filter(n => n.note_type === noteType).map((note, i) => (
+                        <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                          {note.songTitle && isGroup && <span className="text-blue-400 font-bold">{note.songTitle}: </span>}
+                          {note.note_content}
+                        </p>
                       ))}
                     </div>
                   )}
@@ -769,12 +813,23 @@ if (view === 'display' && showLyrics && currentSong) {
           
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6">
+            {/* Group Instructions (if this is a group) */}
+            {isGroup && groupInstructions && (
+              <div className="mb-6 p-4 bg-green-900/30 rounded-xl border border-green-600/30">
+                <div className="text-sm font-bold text-green-400 mb-2">Group Instructions</div>
+                <p className="text-green-100 text-lg whitespace-pre-wrap">{groupInstructions}</p>
+              </div>
+            )}
+            
             {/* Expanded Instruction Notes (above lyrics) */}
             {instructionTypes.filter(t => expandedNotes.includes(t)).map(noteType => (
               <div key={noteType} className="mb-6 p-4 bg-yellow-900/30 rounded-xl border border-yellow-600/30">
                 <div className="text-sm font-bold text-yellow-400 mb-2">{NOTE_TYPE_LABELS[noteType]}</div>
-                {getNotesByType(songId, noteType).map((note, i) => (
-                  <p key={i} className="text-yellow-100 text-lg">{note.note_content}</p>
+                {currentNotes.filter(n => n.note_type === noteType).map((note, i) => (
+                  <p key={i} className="text-yellow-100 text-lg">
+                    {note.songTitle && isGroup && <span className="text-yellow-400 font-bold">{note.songTitle}: </span>}
+                    {note.note_content}
+                  </p>
                 ))}
               </div>
             ))}
@@ -792,10 +847,16 @@ if (view === 'display' && showLyrics && currentSong) {
                 </div>
               )}
               
-              {/* Year written */}
-              {yearWritten && (
+              {/* Year(s) written */}
+              {yearsWritten.length > 0 && (
                 <div className="mt-8 text-lg text-gray-400 italic">
-                  Written: {yearWritten}
+                  {yearsWritten.length === 1 ? (
+                    `Written: ${yearsWritten[0].year}`
+                  ) : (
+                    yearsWritten.map((y, i) => (
+                      <span key={i}>{i > 0 && ' • '}{y.title}: {y.year}</span>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -804,8 +865,11 @@ if (view === 'display' && showLyrics && currentSong) {
             {otherTypes.filter(t => expandedNotes.includes(t)).map(noteType => (
               <div key={noteType} className="mb-6 p-4 bg-blue-900/30 rounded-xl border border-blue-600/30">
                 <div className="text-sm font-bold text-blue-400 mb-2">{NOTE_TYPE_LABELS[noteType]}</div>
-                {getNotesByType(songId, noteType).map((note, i) => (
-                  <p key={i} className="text-blue-100 text-lg">{note.note_content}</p>
+                {currentNotes.filter(n => n.note_type === noteType).map((note, i) => (
+                  <p key={i} className="text-blue-100 text-lg">
+                    {note.songTitle && isGroup && <span className="text-blue-400 font-bold">{note.songTitle}: </span>}
+                    {note.note_content}
+                  </p>
                 ))}
               </div>
             ))}
