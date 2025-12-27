@@ -1351,3 +1351,4 @@ if (view === 'display' && showLyrics && currentSong) {
     </div>
   );
 }
+
