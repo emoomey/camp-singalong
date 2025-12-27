@@ -56,6 +56,7 @@ export default function Home() {
   // Tag filtering state
   const [tags, setTags] = useState([]);
   const [songTags, setSongTags] = useState([]);
+  const [songVersions, setSongVersions] = useState([]);
   const [includeTagIds, setIncludeTagIds] = useState([]); // "Also include" tags
   const [excludeTagIds, setExcludeTagIds] = useState([]); // "Exclude" tags
 
@@ -77,11 +78,28 @@ export default function Home() {
 
   const loadSongs = async () => {
     try {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
-      setAllSongs(await response.json());
+      const [songsRes, versionsRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        })
+      ]);
+      setAllSongs(await songsRes.json());
+      setSongVersions(await versionsRes.json());
     } catch (error) { console.error('Error loading songs:', error); }
+  };
+
+  // Get the default singalong version for a song
+  const getDefaultVersion = (songId) => {
+    return songVersions.find(v => v.song_id === songId && v.is_default_singalong) 
+      || songVersions.find(v => v.song_id === songId);
+  };
+
+  // Check if a song has any version with lyrics
+  const songHasLyrics = (songId) => {
+    return songVersions.some(v => v.song_id === songId && v.lyrics_content);
   };
 
   const loadTags = async () => {
@@ -176,6 +194,7 @@ export default function Home() {
   const addToQueue = async (song, requester = 'Someone') => {
     if (queue.some(s => s.song_title === song.title)) return;
     const maxPosition = queue.length > 0 ? Math.max(...queue.map(s => s.position)) : -1;
+    const version = getDefaultVersion(song.id);
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/queue`, {
         method: 'POST',
@@ -191,8 +210,8 @@ export default function Home() {
           requester: requester,
           position: maxPosition + 1,
           old_page: song.old_page || null,
-          has_lyrics: song.has_lyrics || false,
-          lyrics_text: song.lyrics_text || null
+          has_lyrics: !!version?.lyrics_content,
+          lyrics_text: version?.lyrics_content || null
         })
       });
     } catch (error) { console.error('Error adding to queue:', error); }
@@ -293,15 +312,22 @@ export default function Home() {
   };
 
   const filteredSongs = allSongs.filter(song => {
+    // First apply section/tag filters (same as random generator)
+    if (songHasAnyTag(song.id, excludeTagIds)) return false;
+    const matchesSection = selectedSections.includes(song.section);
+    const matchesIncludeTag = songHasAnyTag(song.id, includeTagIds);
+    if (!matchesSection && !matchesIncludeTag) return false;
+    
+    // Then apply search filter
     const searchLower = searchTerm.toLowerCase().trim();
     if (!searchLower) return true;
     const matchesTitle = song.title.toLowerCase().includes(searchLower);
     const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
                         (song.old_page && song.old_page.toLowerCase().includes(searchLower));
     const sectionName = SECTION_INFO[song.section] || "";
-    const matchesSection = song.section?.toLowerCase() === searchLower || 
+    const matchesSectionSearch = song.section?.toLowerCase() === searchLower || 
                            sectionName.toLowerCase().includes(searchLower);
-    return matchesTitle || matchesPage || matchesSection;
+    return matchesTitle || matchesPage || matchesSectionSearch;
   });
 
   // Landing Page
@@ -699,10 +725,10 @@ if (view === 'display' && showLyrics && currentSong) {
             className={`w-full p-4 rounded-2xl mb-4 border outline-none focus:ring-2 focus:ring-green-500 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
           />
           <div className="max-h-80 overflow-y-auto space-y-2 mb-6">
-            {filteredSongs.slice(0, 30).map(song => (
+            {filteredSongs.map(song => (
               <div key={song.id} className="flex justify-between items-center p-3 rounded-xl border border-black/5 bg-black/5">
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-sm truncate">{song.title} {song.has_lyrics && '📄'}</div>
+                  <div className="font-bold text-sm truncate">{song.title} {songHasLyrics(song.id) && '📄'}</div>
                   <div className="text-[10px] opacity-50 font-black uppercase tracking-tighter">Section {song.section} • Page {song.page}</div>
                 </div>
                 <button onClick={() => addToQueue(song)} className="ml-3 bg-green-600 text-white w-10 h-10 rounded-full font-bold flex items-center justify-center">＋</button>
