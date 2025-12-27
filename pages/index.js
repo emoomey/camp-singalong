@@ -463,10 +463,10 @@ if (view === 'display' && showLyrics && currentSong) {
         {/* Vertical Queue for TV */}
         {queue.length > 0 && (
           <div className="p-8 w-full max-w-5xl mx-auto mt-auto mb-10">
-            <h2 className="text-2xl tv:text-4xl font-bold mb-6 opacity-40 border-b border-white/10 pb-3">Up Next</h2>
+            <h2 className="text-3xl tv:text-5xl font-bold mb-6 opacity-40 border-b border-white/10 pb-3">Up Next</h2>
             <div className="space-y-4">
                {queue.slice(0, 5).map((song, i) => (
-                 <div key={song.id} className="flex justify-between items-center text-2xl tv:text-4xl font-medium">
+                 <div key={song.id} className="flex justify-between items-center text-4xl tv:text-6xl font-medium">
                    <div className="truncate">
                     <span className="opacity-50 mr-4">{i+1}.</span>
                     {song.song_title} {song.has_lyrics && '📄'}
@@ -475,7 +475,7 @@ if (view === 'display' && showLyrics && currentSong) {
                  </div>
                ))}
                {queue.length > 5 && (
-                 <div className="text-xl opacity-40 italic mt-3">+ {queue.length - 5} more songs</div>
+                 <div className="text-2xl opacity-40 italic mt-3">+ {queue.length - 5} more songs</div>
                )}
             </div>
           </div>
