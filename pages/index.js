@@ -420,7 +420,10 @@ export default function Home() {
       section: song.song_section,
       old_page: song.old_page,
       has_lyrics: song.has_lyrics || false,
-      lyrics_text: song.lyrics_text || null
+      lyrics_text: song.lyrics_text || null,
+      is_group: song.is_group || false,
+      group_id: song.group_id || null,
+      group_instructions: song.group_instructions || null
     };
     await updateRoom({ current_song: songObj, sung_songs: [...sungSongs, songObj] });
     try {
