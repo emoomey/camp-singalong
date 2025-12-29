@@ -1057,6 +1057,104 @@ export default function Admin() {
     duplicateStatusFilter === 'all' || d.status === duplicateStatusFilter
   );
 
+  // Auto-duplicate detection using fuzzy matching
+  const normalizeTitle = (title) => {
+    return title?.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '') // remove punctuation
+      .replace(/\s+/g, ' ')        // normalize spaces
+      .replace(/^(the|a|an)\s+/i, '') // remove leading articles
+      .trim();
+  };
+
+  const findPotentialDuplicates = () => {
+    const suggestions = [];
+    const checked = new Set();
+    
+    // Get existing duplicate pairs to avoid re-suggesting
+    const existingPairs = new Set(potentialDuplicates.map(d => 
+      [d.song_id_a, d.song_id_b].sort().join('-')
+    ));
+    
+    for (let i = 0; i < allSongs.length; i++) {
+      const songA = allSongs[i];
+      const normA = normalizeTitle(songA.title);
+      
+      for (let j = i + 1; j < allSongs.length; j++) {
+        const songB = allSongs[j];
+        const pairKey = [songA.id, songB.id].sort().join('-');
+        
+        // Skip if already flagged
+        if (existingPairs.has(pairKey)) continue;
+        
+        const normB = normalizeTitle(songB.title);
+        
+        // Check for matches
+        let reason = null;
+        
+        // Exact normalized match
+        if (normA === normB) {
+          reason = 'Exact title match (after normalization)';
+        }
+        // One contains the other (for titles like "Song" vs "Song (Alternate)")
+        else if (normA.length > 3 && normB.length > 3) {
+          if (normA.includes(normB) || normB.includes(normA)) {
+            reason = 'One title contains the other';
+          }
+        }
+        // Check if title matches an alias
+        const aliasesA = getSongAliases(songA.id).map(a => normalizeTitle(a.alias_title));
+        const aliasesB = getSongAliases(songB.id).map(a => normalizeTitle(a.alias_title));
+        if (aliasesA.includes(normB) || aliasesB.includes(normA)) {
+          reason = 'Title matches an alias';
+        }
+        
+        if (reason) {
+          suggestions.push({ songA, songB, reason });
+        }
+      }
+    }
+    return suggestions;
+  };
+
+  const autoDetectedDuplicates = findPotentialDuplicates();
+
+  const saveAutoDetectedDuplicate = async (songA, songB, reason) => {
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates`, { 
+        method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({
+          song_id_a: songA.id,
+          song_id_b: songB.id,
+          status: 'pending',
+          suggested_by: 'auto',
+          notes: reason,
+          created_by: 'auto-detect'
+        }) 
+      });
+      showMessage('✅ Added to duplicate review queue');
+      await loadAllData();
+    } catch (error) { showMessage('❌ Error saving'); }
+  };
+
+  const dismissAutoDetected = (songA, songB) => {
+    // For now just add to the DB as not_duplicate so it won't show again
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates`, { 
+      method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+      body: JSON.stringify({
+        song_id_a: songA.id,
+        song_id_b: songB.id,
+        status: 'not_duplicate',
+        suggested_by: 'auto',
+        notes: 'Dismissed from auto-detection',
+        created_by: sessionName,
+        resolved_at: new Date().toISOString(),
+        resolved_by: sessionName
+      }) 
+    }).then(() => loadAllData());
+  };
+
   // Alias swap (promote alias to title)
   const swapAliasWithTitle = async (alias) => {
     if (!confirm(`Swap "${alias.alias_title}" with the current title "${selectedSong.title}"? The current title will become an alias.`)) return;
@@ -1225,7 +1323,7 @@ export default function Admin() {
         <button style={s.mainTab(mainTab === 'songs')} onClick={() => setMainTab('songs')}>Songs</button>
         <button style={s.mainTab(mainTab === 'groups')} onClick={() => setMainTab('groups')}>Groups</button>
         <button style={s.mainTab(mainTab === 'songbooks')} onClick={() => setMainTab('songbooks')}>Songbooks</button>
-        <button style={s.mainTab(mainTab === 'duplicates')} onClick={() => setMainTab('duplicates')}>Duplicates {potentialDuplicates.filter(d => d.status === 'pending').length > 0 && <span style={{ background: '#f59e0b', color: '#000', borderRadius: '9999px', padding: '0 0.4rem', fontSize: '0.7rem', marginLeft: '0.25rem' }}>{potentialDuplicates.filter(d => d.status === 'pending').length}</span>}</button>
+        <button style={s.mainTab(mainTab === 'duplicates')} onClick={() => setMainTab('duplicates')}>Duplicates {(potentialDuplicates.filter(d => d.status === 'pending').length + autoDetectedDuplicates.length) > 0 && <span style={{ background: '#f59e0b', color: '#000', borderRadius: '9999px', padding: '0 0.4rem', fontSize: '0.7rem', marginLeft: '0.25rem' }}>{potentialDuplicates.filter(d => d.status === 'pending').length + autoDetectedDuplicates.length}</span>}</button>
         <button style={s.mainTab(mainTab === 'changelog')} onClick={() => setMainTab('changelog')}>Change Log</button>
       </div>
 
@@ -1849,6 +1947,32 @@ export default function Admin() {
       {mainTab === 'duplicates' && (
         <div style={s.content}>
           <div style={s.panel}>
+            {autoDetectedDuplicates.length > 0 && (
+              <div style={{ background: '#3b82f622', border: '1px solid #3b82f6', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#3b82f6', marginBottom: '0.5rem' }}>
+                  🔍 Auto-Detected ({autoDetectedDuplicates.length})
+                </div>
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {autoDetectedDuplicates.slice(0, 10).map((d, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: '#1e293b', borderRadius: '0.25rem', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div><strong>{d.songA.title}</strong> ↔ <strong>{d.songB.title}</strong></div>
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{d.reason}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                        <button style={s.btnSmall} onClick={() => saveAutoDetectedDuplicate(d.songA, d.songB, d.reason)}>Review</button>
+                        <button style={{ ...s.btnSmall, background: '#334155' }} onClick={() => dismissAutoDetected(d.songA, d.songB)}>Dismiss</button>
+                      </div>
+                    </div>
+                  ))}
+                  {autoDetectedDuplicates.length > 10 && (
+                    <div style={{ color: '#64748b', fontSize: '0.7rem', textAlign: 'center', padding: '0.5rem' }}>
+                      + {autoDetectedDuplicates.length - 10} more suggestions
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <select value={duplicateStatusFilter} onChange={(e) => setDuplicateStatusFilter(e.target.value)} style={s.select}>
                 <option value="pending">Pending Review</option>
