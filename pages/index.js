@@ -236,10 +236,11 @@ export default function Home() {
     setAuthLoading(true);
     setAuthError('');
     try {
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : 'https://tajar.fun/auth/callback';
       const res = await fetch(`${SUPABASE_URL}/auth/v1/magiclink`, {
         method: 'POST',
         headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: authEmail })
+        body: JSON.stringify({ email: authEmail, options: { emailRedirectTo: redirectUrl } })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || data.error_description);
