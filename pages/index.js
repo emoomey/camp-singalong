@@ -121,11 +121,44 @@ export default function Home() {
   }, [roomCode]);
 
   // Auth functions
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('supabase_refresh_token');
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('supabase_access_token', data.access_token);
+        localStorage.setItem('supabase_refresh_token', data.refresh_token);
+        return true;
+      }
+    } catch (error) { console.log('Token refresh failed'); }
+    return false;
+  };
+
   const checkAuthSession = async () => {
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${localStorage.getItem('supabase_access_token')}` }
+      const token = localStorage.getItem('supabase_access_token');
+      if (!token) return;
+      
+      let res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
       });
+      
+      // If token expired, try to refresh
+      if (res.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${localStorage.getItem('supabase_access_token')}` }
+          });
+        }
+      }
+      
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
@@ -159,13 +192,15 @@ export default function Home() {
     setAuthLoading(true);
     setAuthError('');
     try {
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : 'https://tajar.fun/auth/callback';
       const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
         method: 'POST',
         headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: authEmail, 
           password: authPassword,
-          data: { display_name: authDisplayName || authEmail }
+          data: { display_name: authDisplayName || authEmail },
+          options: { emailRedirectTo: redirectUrl }
         })
       });
       const data = await res.json();
