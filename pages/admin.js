@@ -154,6 +154,9 @@ export default function Admin() {
   const [duplicateSearchTerm, setDuplicateSearchTerm] = useState('');
   const [selectedDuplicateOf, setSelectedDuplicateOf] = useState(null);
   const [duplicateNotes, setDuplicateNotes] = useState('');
+  const [selectedDuplicate, setSelectedDuplicate] = useState(null);
+  const [duplicateStatusFilter, setDuplicateStatusFilter] = useState('pending');
+  const [mergePrimarySongId, setMergePrimarySongId] = useState(null);
 
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
@@ -918,9 +921,108 @@ export default function Admin() {
         body: JSON.stringify({ status: 'not_duplicate', resolved_at: new Date().toISOString(), resolved_by: sessionName }) 
       });
       showMessage('✅ Marked as not duplicate');
+      setSelectedDuplicate(null);
       await loadAllData();
     } catch (error) { showMessage('❌ Error updating'); }
   };
+
+  const selectDuplicateForReview = (dup) => {
+    setSelectedDuplicate(dup);
+    // Default to keeping song_id_a as primary if both exist
+    setMergePrimarySongId(dup.song_id_a);
+  };
+
+  const mergeDuplicates = async () => {
+    if (!selectedDuplicate || !mergePrimarySongId) return;
+    const secondarySongId = mergePrimarySongId === selectedDuplicate.song_id_a ? selectedDuplicate.song_id_b : selectedDuplicate.song_id_a;
+    if (!secondarySongId) {
+      showMessage('❌ Cannot merge - other song not specified');
+      return;
+    }
+    
+    const primarySong = allSongs.find(s => s.id === mergePrimarySongId);
+    const secondarySong = allSongs.find(s => s.id === secondarySongId);
+    
+    if (!confirm(`Merge "${secondarySong?.title}" into "${primarySong?.title}"?\n\nThis will:\n• Create "${secondarySong?.title}" as an alias of "${primarySong?.title}"\n• Move all versions, notes, media, and flags to the primary song\n• Delete the secondary song\n\nThis cannot be undone.`)) return;
+    
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    
+    try {
+      // 1. Create alias from secondary song title
+      await fetch(`${SUPABASE_URL}/rest/v1/song_aliases`, { 
+        method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId, alias_title: secondarySong.title }) 
+      });
+      
+      // 2. Move versions from secondary to primary
+      await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${secondarySongId}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId }) 
+      });
+      
+      // 3. Move notes from secondary to primary
+      await fetch(`${SUPABASE_URL}/rest/v1/song_notes?song_id=eq.${secondarySongId}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId }) 
+      });
+      
+      // 4. Move media from secondary to primary
+      await fetch(`${SUPABASE_URL}/rest/v1/song_media?song_id=eq.${secondarySongId}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId }) 
+      });
+      
+      // 5. Move flags from secondary to primary (skip if flag type already exists)
+      const secondaryFlags = songFlags.filter(f => f.song_id === secondarySongId);
+      const primaryFlagTypes = songFlags.filter(f => f.song_id === mergePrimarySongId).map(f => f.flag_type);
+      for (const flag of secondaryFlags) {
+        if (!primaryFlagTypes.includes(flag.flag_type)) {
+          await fetch(`${SUPABASE_URL}/rest/v1/song_flags?id=eq.${flag.id}`, { 
+            method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+            body: JSON.stringify({ song_id: mergePrimarySongId }) 
+          });
+        }
+      }
+      
+      // 6. Move aliases from secondary to primary
+      await fetch(`${SUPABASE_URL}/rest/v1/song_aliases?song_id=eq.${secondarySongId}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId }) 
+      });
+      
+      // 7. Move songbook entries from secondary to primary
+      await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?song_id=eq.${secondarySongId}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ song_id: mergePrimarySongId }) 
+      });
+      
+      // 8. Update duplicate record to merged
+      await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates?id=eq.${selectedDuplicate.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ status: 'merged', resolved_at: new Date().toISOString(), resolved_by: sessionName }) 
+      });
+      
+      // 9. Delete the secondary song
+      await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${secondarySongId}`, { 
+        method: 'DELETE', headers 
+      });
+      
+      await logChange('edit', 'songs', mergePrimarySongId, primarySong.title, 'merge', secondarySong.title, `Merged into ${primarySong.title}`);
+      
+      showMessage('✅ Songs merged successfully');
+      setSelectedDuplicate(null);
+      await loadAllData();
+    } catch (error) { 
+      console.error(error); 
+      showMessage('❌ Error merging songs'); 
+    }
+    setSaving(false);
+  };
+
+  const filteredDuplicates = potentialDuplicates.filter(d => 
+    duplicateStatusFilter === 'all' || d.status === duplicateStatusFilter
+  );
 
   // Alias swap (promote alias to title)
   const swapAliasWithTitle = async (alias) => {
@@ -1089,6 +1191,7 @@ export default function Admin() {
         <button style={s.mainTab(mainTab === 'songs')} onClick={() => setMainTab('songs')}>Songs</button>
         <button style={s.mainTab(mainTab === 'groups')} onClick={() => setMainTab('groups')}>Groups</button>
         <button style={s.mainTab(mainTab === 'songbooks')} onClick={() => setMainTab('songbooks')}>Songbooks</button>
+        <button style={s.mainTab(mainTab === 'duplicates')} onClick={() => setMainTab('duplicates')}>Duplicates {potentialDuplicates.filter(d => d.status === 'pending').length > 0 && <span style={{ background: '#f59e0b', color: '#000', borderRadius: '9999px', padding: '0 0.4rem', fontSize: '0.7rem', marginLeft: '0.25rem' }}>{potentialDuplicates.filter(d => d.status === 'pending').length}</span>}</button>
         <button style={s.mainTab(mainTab === 'changelog')} onClick={() => setMainTab('changelog')}>Change Log</button>
       </div>
 
@@ -1694,6 +1797,153 @@ export default function Admin() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {mainTab === 'duplicates' && (
+        <div style={s.content}>
+          <div style={s.panel}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <select value={duplicateStatusFilter} onChange={(e) => setDuplicateStatusFilter(e.target.value)} style={s.select}>
+                <option value="pending">Pending Review</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="not_duplicate">Not Duplicates</option>
+                <option value="merged">Merged</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>{filteredDuplicates.length} items</div>
+            <div style={s.songList}>
+              {filteredDuplicates.map(dup => {
+                const songA = allSongs.find(s => s.id === dup.song_id_a);
+                const songB = allSongs.find(s => s.id === dup.song_id_b);
+                return (
+                  <div key={dup.id} style={s.songItem(selectedDuplicate?.id === dup.id)} onClick={() => selectDuplicateForReview(dup)}>
+                    <div style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{songA?.title || 'Unknown'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      → {songB?.title || '(not specified)'}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: dup.status === 'pending' ? '#f59e0b' : dup.status === 'merged' ? '#22c55e' : '#64748b', marginTop: '0.25rem' }}>
+                      {dup.status} {dup.suggested_by === 'auto' && '• auto-detected'}
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredDuplicates.length === 0 && <div style={{ color: '#64748b', padding: '1rem', textAlign: 'center' }}>No duplicates found</div>}
+            </div>
+          </div>
+          <div style={s.panel}>
+            {!selectedDuplicate ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>Select a duplicate to review</div>
+            ) : (() => {
+              const songA = allSongs.find(s => s.id === selectedDuplicate.song_id_a);
+              const songB = allSongs.find(s => s.id === selectedDuplicate.song_id_b);
+              const songAVersions = getSongVersions(selectedDuplicate.song_id_a);
+              const songBVersions = songB ? getSongVersions(selectedDuplicate.song_id_b) : [];
+              const songANotes = getSongNotes(selectedDuplicate.song_id_a);
+              const songBNotes = songB ? getSongNotes(selectedDuplicate.song_id_b) : [];
+              const songAMedia = getSongMedia(selectedDuplicate.song_id_a);
+              const songBMedia = songB ? getSongMedia(selectedDuplicate.song_id_b) : [];
+              
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Compare Songs</h2>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button style={s.btnSec} onClick={() => setSelectedDuplicate(null)}>✕ Close</button>
+                    </div>
+                  </div>
+                  
+                  {selectedDuplicate.notes && (
+                    <div style={{ background: '#1e293b', padding: '0.5rem', borderRadius: '0.25rem', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                      <strong>Notes:</strong> {selectedDuplicate.notes}
+                    </div>
+                  )}
+                  
+                  {selectedDuplicate.status === 'pending' && songB && (
+                    <div style={{ background: '#22c55e22', border: '1px solid #22c55e', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Choose primary song (the one to keep):</div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          style={{ ...s.btn, flex: 1, background: mergePrimarySongId === songA?.id ? '#22c55e' : '#334155' }} 
+                          onClick={() => setMergePrimarySongId(songA?.id)}
+                        >
+                          Keep "{songA?.title}"
+                        </button>
+                        <button 
+                          style={{ ...s.btn, flex: 1, background: mergePrimarySongId === songB?.id ? '#22c55e' : '#334155' }} 
+                          onClick={() => setMergePrimarySongId(songB?.id)}
+                        >
+                          Keep "{songB?.title}"
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: songB ? '1fr 1fr' : '1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    {/* Song A */}
+                    <div style={{ background: '#0f172a', borderRadius: '0.5rem', padding: '1rem', border: mergePrimarySongId === songA?.id ? '2px solid #22c55e' : '1px solid #334155' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.5rem' }}>{songA?.title || 'Unknown'}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                        Section {songA?.section} • Page {songA?.page || 'N/A'}
+                      </div>
+                      {songA?.author && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Author: {songA.author}</div>}
+                      {songA?.year_written && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Year: {songA.year_written}</div>}
+                      <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                        <div style={{ color: '#64748b' }}>📄 {songAVersions.length} version(s) • 📝 {songANotes.length} note(s) • 🎵 {songAMedia.length} media</div>
+                      </div>
+                      {songAVersions.length > 0 && (
+                        <div style={{ marginTop: '0.5rem', background: '#1e293b', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.7rem', maxHeight: '100px', overflow: 'auto' }}>
+                          {songAVersions[0]?.lyrics_content?.substring(0, 200)}...
+                        </div>
+                      )}
+                      <button style={{ ...s.btnSmall, marginTop: '0.5rem' }} onClick={() => { setMainTab('songs'); selectSong(songA); }}>View Full Song →</button>
+                    </div>
+                    
+                    {/* Song B */}
+                    {songB ? (
+                      <div style={{ background: '#0f172a', borderRadius: '0.5rem', padding: '1rem', border: mergePrimarySongId === songB?.id ? '2px solid #22c55e' : '1px solid #334155' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.5rem' }}>{songB?.title || 'Unknown'}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                          Section {songB?.section} • Page {songB?.page || 'N/A'}
+                        </div>
+                        {songB?.author && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Author: {songB.author}</div>}
+                        {songB?.year_written && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Year: {songB.year_written}</div>}
+                        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem' }}>
+                          <div style={{ color: '#64748b' }}>📄 {songBVersions.length} version(s) • 📝 {songBNotes.length} note(s) • 🎵 {songBMedia.length} media</div>
+                        </div>
+                        {songBVersions.length > 0 && (
+                          <div style={{ marginTop: '0.5rem', background: '#1e293b', padding: '0.5rem', borderRadius: '0.25rem', fontSize: '0.7rem', maxHeight: '100px', overflow: 'auto' }}>
+                            {songBVersions[0]?.lyrics_content?.substring(0, 200)}...
+                          </div>
+                        )}
+                        <button style={{ ...s.btnSmall, marginTop: '0.5rem' }} onClick={() => { setMainTab('songs'); selectSong(songB); }}>View Full Song →</button>
+                      </div>
+                    ) : (
+                      <div style={{ background: '#0f172a', borderRadius: '0.5rem', padding: '1rem', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                        Other song not specified
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedDuplicate.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <button style={s.btnSec} onClick={() => dismissDuplicate(selectedDuplicate)}>Not a Duplicate</button>
+                      {songB && <button style={s.btn} onClick={mergeDuplicates} disabled={saving || !mergePrimarySongId}>{saving ? 'Merging...' : 'Merge Songs'}</button>}
+                    </div>
+                  )}
+                  
+                  {selectedDuplicate.status !== 'pending' && (
+                    <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.8rem' }}>
+                      This duplicate was marked as "{selectedDuplicate.status}" 
+                      {selectedDuplicate.resolved_by && ` by ${selectedDuplicate.resolved_by}`}
+                      {selectedDuplicate.resolved_at && ` on ${new Date(selectedDuplicate.resolved_at).toLocaleDateString()}`}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
