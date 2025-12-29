@@ -50,10 +50,6 @@ export default function Admin() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
 
-  const [sessionName, setSessionName] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('camp_admin_name') || '';
-    return '';
-  });
   const [mainTab, setMainTab] = useState('songs');
   const [allSongs, setAllSongs] = useState([]);
   const [songVersions, setSongVersions] = useState([]);
@@ -175,7 +171,6 @@ export default function Admin() {
   // Check auth on load
   useEffect(() => { checkAuthSession(); }, []);
   useEffect(() => { if (userProfile?.role === 'admin') loadAllData(); }, [userProfile]);
-  useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
   const checkAuthSession = async () => {
     try {
@@ -285,13 +280,26 @@ export default function Admin() {
   };
 
   const showMessage = (msg) => { setMessage(msg); setTimeout(() => setMessage(''), 3000); };
+  
+  // Get current user's display name for logging
+  const currentUserName = userProfile?.display_name || user?.email || 'unknown';
 
   const logChange = async (action, tableName, recordId, recordTitle, fieldChanged = null, oldValue = null, newValue = null) => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
       await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
         method: 'POST', headers,
-        body: JSON.stringify({ action, table_name: tableName, song_id: tableName === 'songs' ? recordId : null, song_title: recordTitle, field_changed: fieldChanged, old_value: oldValue ? String(oldValue).substring(0, 500) : null, new_value: newValue ? String(newValue).substring(0, 500) : null, changed_by: sessionName || 'unknown' })
+        body: JSON.stringify({ 
+          action, 
+          table_name: tableName, 
+          song_id: tableName === 'songs' ? recordId : null, 
+          song_title: recordTitle, 
+          field_changed: fieldChanged, 
+          old_value: oldValue ? String(oldValue).substring(0, 500) : null, 
+          new_value: newValue ? String(newValue).substring(0, 500) : null, 
+          changed_by: currentUserName,
+          changed_by_id: user?.id || null
+        })
       });
     } catch (error) { console.error('Logging Error:', error); }
   };
@@ -349,7 +357,7 @@ export default function Admin() {
   const cancelSongEdit = () => { setSelectedSong(null); setIsAddingNew(false); };
 
   const saveSongBasic = async () => {
-    if (!sessionName.trim()) { showMessage('❌ Please enter your name first'); return; }
+    
     if (!formTitle.trim()) { showMessage('❌ Title is required'); return; }
     setSaving(true);
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
@@ -436,7 +444,7 @@ export default function Admin() {
   };
 
   const saveSongLyrics = async () => {
-    if (!sessionName.trim()) { showMessage('❌ Please enter your name first'); return; }
+    
     setSaving(true);
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
     try {
@@ -444,7 +452,7 @@ export default function Admin() {
       if (existingVersion) {
         await fetch(`${SUPABASE_URL}/rest/v1/song_versions?id=eq.${existingVersion.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ lyrics_content: formLyrics.trim() || null }) });
       } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/song_versions`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ song_id: selectedSong.id, version_type: 'canonical', label: 'Original', lyrics_content: formLyrics.trim() || null, is_default_singalong: true, is_default_explore: true, created_by: sessionName }) });
+        await fetch(`${SUPABASE_URL}/rest/v1/song_versions`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ song_id: selectedSong.id, version_type: 'canonical', label: 'Original', lyrics_content: formLyrics.trim() || null, is_default_singalong: true, is_default_explore: true, created_by: currentUserName }) });
       }
       await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${selectedSong.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ has_lyrics: formLyrics.trim().length > 0 }) });
       await logChange('edit', 'song_versions', selectedSong.id, selectedSong.title, 'lyrics', existingVersion?.lyrics_content ? '[had lyrics]' : '[no lyrics]', formLyrics.trim() ? '[has lyrics]' : '[no lyrics]');
@@ -463,7 +471,7 @@ export default function Admin() {
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
     try {
       if (editingNote.isNew) {
-        await fetch(`${SUPABASE_URL}/rest/v1/song_notes`, { method: 'POST', headers, body: JSON.stringify({ song_id: selectedSong.id, note_type: noteType, note_content: noteContent.trim(), created_by: sessionName }) });
+        await fetch(`${SUPABASE_URL}/rest/v1/song_notes`, { method: 'POST', headers, body: JSON.stringify({ song_id: selectedSong.id, note_type: noteType, note_content: noteContent.trim(), created_by: currentUserName }) });
         await logChange('add', 'song_notes', selectedSong.id, selectedSong.title, noteType, null, noteContent.trim());
       } else {
         await fetch(`${SUPABASE_URL}/rest/v1/song_notes?id=eq.${editingNote.id}`, { method: 'PATCH', headers, body: JSON.stringify({ note_type: noteType, note_content: noteContent.trim() }) });
@@ -594,7 +602,7 @@ export default function Admin() {
   const cancelSongbookEdit = () => { setSelectedSongbook(null); setIsAddingNewSongbook(false); };
 
   const saveSongbook = async () => {
-    if (!sessionName.trim()) { showMessage('❌ Please enter your name first'); return; }
+    
     if (!formSongbookName.trim()) { showMessage('❌ Name is required'); return; }
     if (!formSongbookShortName.trim()) { showMessage('❌ Short name is required'); return; }
     setSaving(true);
@@ -920,7 +928,7 @@ export default function Admin() {
         song_id: selectedSong.id,
         flag_type: flagType,
         explanation: flagExplanation.trim(),
-        created_by: sessionName
+        created_by: currentUserName
       };
       if (editingFlag.isNew) {
         // Check if flag type already exists for this song
@@ -989,7 +997,7 @@ export default function Admin() {
         status: 'pending',
         suggested_by: 'user',
         notes: duplicateNotes.trim() || null,
-        created_by: sessionName
+        created_by: currentUserName
       };
       await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates`, { 
         method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
@@ -1008,7 +1016,7 @@ export default function Admin() {
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates?id=eq.${dup.id}`, { 
         method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
-        body: JSON.stringify({ status: 'not_duplicate', resolved_at: new Date().toISOString(), resolved_by: sessionName }) 
+        body: JSON.stringify({ status: 'not_duplicate', resolved_at: new Date().toISOString(), resolved_by: currentUserName }) 
       });
       showMessage('✅ Marked as not duplicate');
       setSelectedDuplicate(null);
@@ -1123,7 +1131,7 @@ export default function Admin() {
       // 10. Update duplicate record to merged
       await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates?id=eq.${selectedDuplicate.id}`, { 
         method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
-        body: JSON.stringify({ status: 'merged', resolved_at: new Date().toISOString(), resolved_by: sessionName }) 
+        body: JSON.stringify({ status: 'merged', resolved_at: new Date().toISOString(), resolved_by: currentUserName }) 
       });
       
       // 11. Delete the secondary song
@@ -1238,9 +1246,9 @@ export default function Admin() {
         status: 'not_duplicate',
         suggested_by: 'auto',
         notes: 'Dismissed from auto-detection',
-        created_by: sessionName,
+        created_by: currentUserName,
         resolved_at: new Date().toISOString(),
-        resolved_by: sessionName
+        resolved_by: currentUserName
       }) 
     }).then(() => loadAllData());
   };
@@ -1292,7 +1300,7 @@ export default function Admin() {
   const cancelGroupEdit = () => { setSelectedGroup(null); setIsAddingNewGroup(false); };
 
   const saveGroupInfo = async () => {
-    if (!sessionName.trim()) { showMessage('❌ Please enter your name first'); return; }
+    
     if (!formGroupName.trim()) { showMessage('❌ Group name is required'); return; }
     setSaving(true);
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
@@ -1496,10 +1504,7 @@ export default function Admin() {
       <div style={s.header}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎵 Song Admin</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Your name:</span>
-            <input type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} placeholder="Enter your name" style={s.nameInput} />
-          </div>
+          <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>👋 {currentUserName}</span>
           <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>Sign out</button>
         </div>
       </div>
