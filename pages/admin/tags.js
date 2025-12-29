@@ -18,6 +18,7 @@ const SECTION_INFO = {
 export default function TagManagement() {
   // Auth state
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authEmail, setAuthEmail] = useState('');
@@ -62,7 +63,7 @@ export default function TagManagement() {
 
   // Check auth on load
   useEffect(() => { checkAuthSession(); }, []);
-  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => { if (userProfile?.role === 'admin') loadData(); }, [userProfile]);
 
   const checkAuthSession = async () => {
     try {
@@ -74,9 +75,20 @@ export default function TagManagement() {
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
+        await loadUserProfile(userData.id);
       }
     } catch (error) { console.log('No existing session'); }
     setAuthChecked(true);
+  };
+
+  const loadUserProfile = async (userId) => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${localStorage.getItem('supabase_access_token')}` }
+      });
+      const data = await res.json();
+      if (data.length > 0) setUserProfile(data[0]);
+    } catch (error) { console.error('Error loading profile:', error); }
   };
 
   const handleLogin = async () => {
@@ -500,6 +512,27 @@ export default function TagManagement() {
           
           <div className="mt-6 text-center">
             <a href="/" className="text-slate-400 text-sm hover:text-slate-300">← Back to Singalong</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin role check
+  if (userProfile?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-50 flex items-center justify-center p-4">
+        <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-slate-400 mb-6">You need admin privileges to access this page.</p>
+          <div className="flex flex-col gap-3">
+            <a href="/" className="bg-green-600 hover:bg-green-500 text-white p-3 rounded-lg font-bold transition-all">
+              ← Back to Singalong
+            </a>
+            <button onClick={handleLogout} className="text-red-400 hover:text-red-300 text-sm">
+              Sign out
+            </button>
           </div>
         </div>
       </div>
