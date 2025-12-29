@@ -39,6 +39,17 @@ const MEMBER_ROLES = [
 ];
 
 export default function Admin() {
+  // Auth state
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+
   const [sessionName, setSessionName] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('camp_admin_name') || '';
     return '';
@@ -159,8 +170,68 @@ export default function Admin() {
   const [duplicateStatusFilter, setDuplicateStatusFilter] = useState('pending');
   const [mergePrimarySongId, setMergePrimarySongId] = useState(null);
 
-  useEffect(() => { loadAllData(); }, []);
+  // Check auth on load
+  useEffect(() => { checkAuthSession(); }, []);
+  useEffect(() => { if (user) loadAllData(); }, [user]);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
+
+  const checkAuthSession = async () => {
+    try {
+      const token = localStorage.getItem('supabase_access_token');
+      if (!token) { setAuthChecked(true); return; }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+      }
+    } catch (error) { console.log('No existing session'); }
+    setAuthChecked(true);
+  };
+
+  const handleLogin = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail, password: authPassword })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || data.error_description);
+      localStorage.setItem('supabase_access_token', data.access_token);
+      localStorage.setItem('supabase_refresh_token', data.refresh_token);
+      setUser(data.user);
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+    } catch (error) { setAuthError(error.message); }
+    setAuthLoading(false);
+  };
+
+  const handleMagicLink = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/magiclink`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || data.error_description);
+      setAuthMessage('Check your email for the magic link!');
+    } catch (error) { setAuthError(error.message); }
+    setAuthLoading(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('supabase_access_token');
+    localStorage.removeItem('supabase_refresh_token');
+    setUser(null);
+  };
 
   const loadAllData = async () => {
     try {
@@ -1317,13 +1388,89 @@ export default function Admin() {
     tag: { display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#334155', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.875rem', marginRight: '0.5rem', marginBottom: '0.5rem' },
   };
 
+  // Loading state
+  if (!authChecked) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎵</div>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth gate - require login
+  if (!user) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div style={{ background: '#1e293b', borderRadius: '1rem', padding: '2rem', maxWidth: '400px', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎵</div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Song Admin</h1>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Sign in to manage songs</p>
+          </div>
+          
+          {authError && <div style={{ background: '#7f1d1d', color: '#fecaca', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>{authError}</div>}
+          {authMessage && <div style={{ background: '#14532d', color: '#bbf7d0', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>{authMessage}</div>}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              style={{ padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #334155', background: '#0f172a', color: '#f1f5f9' }}
+            />
+            {authMode !== 'magic' && (
+              <input
+                type="password"
+                placeholder="Password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                style={{ padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #334155', background: '#0f172a', color: '#f1f5f9' }}
+              />
+            )}
+            <button
+              onClick={authMode === 'magic' ? handleMagicLink : handleLogin}
+              disabled={authLoading || !authEmail || (authMode !== 'magic' && !authPassword)}
+              style={{ padding: '0.75rem', borderRadius: '0.5rem', border: 'none', background: '#22c55e', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: authLoading ? 0.5 : 1 }}
+            >
+              {authLoading ? 'Loading...' : authMode === 'magic' ? 'Send Magic Link' : 'Sign In'}
+            </button>
+          </div>
+          
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #334155', textAlign: 'center' }}>
+            {authMode === 'login' ? (
+              <button onClick={() => { setAuthMode('magic'); setAuthError(''); }} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.875rem' }}>
+                Use magic link instead
+              </button>
+            ) : (
+              <button onClick={() => { setAuthMode('login'); setAuthError(''); }} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.875rem' }}>
+                Use password instead
+              </button>
+            )}
+          </div>
+          
+          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <a href="/" style={{ color: '#94a3b8', fontSize: '0.875rem', textDecoration: 'none' }}>← Back to Singalong</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={s.container}>
       <div style={s.header}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎵 Song Admin</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Your name:</span>
-          <input type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} placeholder="Enter your name" style={s.nameInput} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Your name:</span>
+            <input type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} placeholder="Enter your name" style={s.nameInput} />
+          </div>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>Sign out</button>
         </div>
       </div>
 

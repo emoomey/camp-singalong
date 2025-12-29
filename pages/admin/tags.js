@@ -16,6 +16,16 @@ const SECTION_INFO = {
 
 
 export default function TagManagement() {
+  // Auth state
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+
   // Session name for tracking who makes changes
   const [sessionName, setSessionName] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -50,9 +60,66 @@ export default function TagManagement() {
   const [selectedSongs, setSelectedSongs] = useState([]); // Array of song IDs
   const [applyTagId, setApplyTagId] = useState(''); // Tag to apply to selected songs
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Check auth on load
+  useEffect(() => { checkAuthSession(); }, []);
+  useEffect(() => { if (user) loadData(); }, [user]);
+
+  const checkAuthSession = async () => {
+    try {
+      const token = localStorage.getItem('supabase_access_token');
+      if (!token) { setAuthChecked(true); return; }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+      }
+    } catch (error) { console.log('No existing session'); }
+    setAuthChecked(true);
+  };
+
+  const handleLogin = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail, password: authPassword })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || data.error_description);
+      localStorage.setItem('supabase_access_token', data.access_token);
+      localStorage.setItem('supabase_refresh_token', data.refresh_token);
+      setUser(data.user);
+      setAuthEmail('');
+      setAuthPassword('');
+    } catch (error) { setAuthError(error.message); }
+    setAuthLoading(false);
+  };
+
+  const handleMagicLink = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/magiclink`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || data.error_description);
+      setAuthMessage('Check your email for the magic link!');
+    } catch (error) { setAuthError(error.message); }
+    setAuthLoading(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('supabase_access_token');
+    localStorage.removeItem('supabase_refresh_token');
+    setUser(null);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -366,6 +433,79 @@ export default function TagManagement() {
     );
   }
 
+  // Loading state
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🏷️</div>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth gate - require login
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-50 flex items-center justify-center p-4">
+        <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-2">🏷️</div>
+            <h1 className="text-2xl font-bold mb-1">Tag Management</h1>
+            <p className="text-slate-400 text-sm">Sign in to manage tags</p>
+          </div>
+          
+          {authError && <div className="bg-red-900/50 text-red-200 p-3 rounded-lg mb-4 text-sm">{authError}</div>}
+          {authMessage && <div className="bg-green-900/50 text-green-200 p-3 rounded-lg mb-4 text-sm">{authMessage}</div>}
+          
+          <div className="flex flex-col gap-3">
+            <input
+              type="email"
+              placeholder="Email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              className="p-3 rounded-lg border border-slate-700 bg-slate-900 text-white outline-none focus:ring-2 focus:ring-green-500"
+            />
+            {authMode !== 'magic' && (
+              <input
+                type="password"
+                placeholder="Password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="p-3 rounded-lg border border-slate-700 bg-slate-900 text-white outline-none focus:ring-2 focus:ring-green-500"
+              />
+            )}
+            <button
+              onClick={authMode === 'magic' ? handleMagicLink : handleLogin}
+              disabled={authLoading || !authEmail || (authMode !== 'magic' && !authPassword)}
+              className="p-3 rounded-lg bg-green-600 hover:bg-green-500 text-white font-bold transition-all disabled:opacity-50"
+            >
+              {authLoading ? 'Loading...' : authMode === 'magic' ? 'Send Magic Link' : 'Sign In'}
+            </button>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-slate-700 text-center">
+            {authMode === 'login' ? (
+              <button onClick={() => { setAuthMode('magic'); setAuthError(''); }} className="text-blue-400 hover:underline text-sm">
+                Use magic link instead
+              </button>
+            ) : (
+              <button onClick={() => { setAuthMode('login'); setAuthError(''); }} className="text-blue-400 hover:underline text-sm">
+                Use password instead
+              </button>
+            )}
+          </div>
+          
+          <div className="mt-6 text-center">
+            <a href="/" className="text-slate-400 text-sm hover:text-slate-300">← Back to Singalong</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-8 pb-32">
@@ -380,7 +520,8 @@ export default function TagManagement() {
               {tags.length} tags • {songs.length} songs
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <button onClick={handleLogout} className="text-red-400 hover:text-red-300 text-sm">Sign out</button>
             <a href="/admin" className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-6 py-2.5 rounded-lg font-bold border border-slate-700 transition-all text-center">
               ← Song Admin
             </a>
