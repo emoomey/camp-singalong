@@ -131,15 +131,27 @@ export default function Admin() {
   const [mediaDisplayExplore, setMediaDisplayExplore] = useState(true);
   const [mediaDisplaySingalong, setMediaDisplaySingalong] = useState(false);
 
+  // Song versions
+  const [versionAttributes, setVersionAttributes] = useState([]);
+  const [editingVersion, setEditingVersion] = useState(null);
+  const [versionLabel, setVersionLabel] = useState('');
+  const [versionType, setVersionType] = useState('canonical');
+  const [versionLyrics, setVersionLyrics] = useState('');
+  const [versionNotes, setVersionNotes] = useState('');
+  const [versionIsDefaultSingalong, setVersionIsDefaultSingalong] = useState(false);
+  const [versionIsDefaultExplore, setVersionIsDefaultExplore] = useState(false);
+  const [versionSelectedAttributes, setVersionSelectedAttributes] = useState([]);
+
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
   const loadAllData = async () => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-      const [songsRes, versionsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, logRes] = await Promise.all([
+      const [songsRes, versionsRes, versionAttrsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, logRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_version_attributes?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_notes?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_sections?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_aliases?select=*`, { headers }),
@@ -152,6 +164,7 @@ export default function Admin() {
       ]);
       setAllSongs(await songsRes.json());
       setSongVersions(await versionsRes.json());
+      setVersionAttributes(await versionAttrsRes.json());
       setSongNotes(await notesRes.json());
       setSongSections(await sectionsRes.json());
       setSongAliases(await aliasesRes.json());
@@ -594,6 +607,175 @@ export default function Admin() {
     } catch (error) { showMessage('❌ Error deleting media'); }
   };
 
+  // Version management
+  const VERSION_TYPES = [
+    { value: 'canonical', label: 'Original/Canonical' },
+    { value: 'alternate', label: 'Alternate Version' }
+  ];
+
+  const VERSION_ATTRIBUTE_TYPES = [
+    { value: 'gender_neutral', label: 'Gender Neutral' },
+    { value: 'secular', label: 'Secular (religious references removed)' },
+    { value: 'kid_friendly', label: 'Kid Friendly' },
+    { value: 'addresses_sensitivity', label: 'Addresses Sensitivity Issues' },
+    { value: 'camp_specific', label: 'Camp-Specific Names/References' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const getSongVersions = (songId) => songVersions.filter(v => v.song_id === songId);
+  const getVersionAttributes = (versionId) => versionAttributes.filter(a => a.song_version_id === versionId);
+
+  const startAddVersion = () => {
+    setEditingVersion({ isNew: true });
+    setVersionLabel('');
+    setVersionType('canonical');
+    setVersionLyrics('');
+    setVersionNotes('');
+    setVersionIsDefaultSingalong(getSongVersions(selectedSong.id).length === 0); // First version is default
+    setVersionIsDefaultExplore(getSongVersions(selectedSong.id).length === 0);
+    setVersionSelectedAttributes([]);
+  };
+
+  const startEditVersion = (version) => {
+    setEditingVersion(version);
+    setVersionLabel(version.label || '');
+    setVersionType(version.version_type || 'canonical');
+    setVersionLyrics(version.lyrics_content || '');
+    setVersionNotes(version.version_notes || '');
+    setVersionIsDefaultSingalong(version.is_default_singalong || false);
+    setVersionIsDefaultExplore(version.is_default_explore || false);
+    setVersionSelectedAttributes(getVersionAttributes(version.id).map(a => a.attribute_type));
+  };
+
+  const cancelVersionEdit = () => setEditingVersion(null);
+
+  const toggleVersionAttribute = (attrType) => {
+    setVersionSelectedAttributes(prev => 
+      prev.includes(attrType) ? prev.filter(a => a !== attrType) : [...prev, attrType]
+    );
+  };
+
+  const saveVersion = async () => {
+    if (!versionLyrics.trim()) { showMessage('❌ Lyrics are required'); return; }
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const versionData = {
+        song_id: selectedSong.id,
+        label: versionLabel.trim() || null,
+        version_type: versionType,
+        lyrics_content: versionLyrics.trim(),
+        version_notes: versionNotes.trim() || null,
+        is_default_singalong: versionIsDefaultSingalong,
+        is_default_explore: versionIsDefaultExplore
+      };
+
+      let versionId;
+      if (editingVersion.isNew) {
+        // If this will be default, unset other defaults first
+        if (versionIsDefaultSingalong) {
+          await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${selectedSong.id}&is_default_singalong=eq.true`, { 
+            method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+            body: JSON.stringify({ is_default_singalong: false }) 
+          });
+        }
+        if (versionIsDefaultExplore) {
+          await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${selectedSong.id}&is_default_explore=eq.true`, { 
+            method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+            body: JSON.stringify({ is_default_explore: false }) 
+          });
+        }
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/song_versions`, { 
+          method: 'POST', headers: { ...headers, 'Prefer': 'return=representation' }, 
+          body: JSON.stringify(versionData) 
+        });
+        const created = await response.json();
+        versionId = created[0].id;
+        await logChange('add', 'song_versions', selectedSong.id, selectedSong.title, 'version', null, versionLabel || 'New version');
+        showMessage('✅ Version added!');
+      } else {
+        versionId = editingVersion.id;
+        // If setting as default, unset others first
+        if (versionIsDefaultSingalong && !editingVersion.is_default_singalong) {
+          await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${selectedSong.id}&is_default_singalong=eq.true&id=neq.${versionId}`, { 
+            method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+            body: JSON.stringify({ is_default_singalong: false }) 
+          });
+        }
+        if (versionIsDefaultExplore && !editingVersion.is_default_explore) {
+          await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${selectedSong.id}&is_default_explore=eq.true&id=neq.${versionId}`, { 
+            method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+            body: JSON.stringify({ is_default_explore: false }) 
+          });
+        }
+        await fetch(`${SUPABASE_URL}/rest/v1/song_versions?id=eq.${versionId}`, { 
+          method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+          body: JSON.stringify(versionData) 
+        });
+        await logChange('edit', 'song_versions', selectedSong.id, selectedSong.title, 'version', editingVersion.label, versionLabel);
+        showMessage('✅ Version updated!');
+      }
+
+      // Update attributes - delete existing and re-add
+      await fetch(`${SUPABASE_URL}/rest/v1/song_version_attributes?song_version_id=eq.${versionId}`, { 
+        method: 'DELETE', headers 
+      });
+      for (const attrType of versionSelectedAttributes) {
+        await fetch(`${SUPABASE_URL}/rest/v1/song_version_attributes`, { 
+          method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+          body: JSON.stringify({ song_version_id: versionId, attribute_type: attrType }) 
+        });
+      }
+
+      // Update song's has_lyrics flag
+      await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${selectedSong.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ has_lyrics: true }) 
+      });
+
+      setEditingVersion(null); 
+      await loadAllData();
+    } catch (error) { console.error(error); showMessage('❌ Error saving version'); }
+    setSaving(false);
+  };
+
+  const deleteVersion = async (version) => {
+    if (!confirm('Delete this version?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/song_versions?id=eq.${version.id}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+      await logChange('delete', 'song_versions', selectedSong.id, selectedSong.title, 'version', version.label || 'version', null);
+      // Update has_lyrics if no versions left
+      const remainingVersions = songVersions.filter(v => v.song_id === selectedSong.id && v.id !== version.id);
+      if (remainingVersions.length === 0) {
+        const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+        await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${selectedSong.id}`, { 
+          method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+          body: JSON.stringify({ has_lyrics: false }) 
+        });
+      }
+      showMessage('✅ Version deleted'); await loadAllData();
+    } catch (error) { showMessage('❌ Error deleting version'); }
+  };
+
+  const setAsDefault = async (version, type) => {
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    const field = type === 'singalong' ? 'is_default_singalong' : 'is_default_explore';
+    try {
+      // Unset others
+      await fetch(`${SUPABASE_URL}/rest/v1/song_versions?song_id=eq.${selectedSong.id}&${field}=eq.true`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ [field]: false }) 
+      });
+      // Set this one
+      await fetch(`${SUPABASE_URL}/rest/v1/song_versions?id=eq.${version.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ [field]: true }) 
+      });
+      showMessage(`✅ Set as default for ${type}`); 
+      await loadAllData();
+    } catch (error) { showMessage('❌ Error setting default'); }
+  };
+
   const selectGroup = (group) => {
     setSelectedGroup(group); setSelectedSong(null); setIsAddingNewGroup(false);
     setFormGroupName(group.group_name); setFormGroupType(group.group_type || 'round_group');
@@ -771,7 +953,7 @@ export default function Admin() {
                 {!isAddingNew && (
                   <div style={s.editTabs}>
                     <button style={s.editTab(songEditTab === 'basic')} onClick={() => setSongEditTab('basic')}>Basic Info</button>
-                    <button style={s.editTab(songEditTab === 'lyrics')} onClick={() => setSongEditTab('lyrics')}>Lyrics</button>
+                    <button style={s.editTab(songEditTab === 'versions')} onClick={() => setSongEditTab('versions')}>Versions ({getSongVersions(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'notes')} onClick={() => setSongEditTab('notes')}>Notes ({getSongNotes(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'media')} onClick={() => setSongEditTab('media')}>Media ({getSongMedia(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'songbooks')} onClick={() => setSongEditTab('songbooks')}>Songbooks ({getSongSongbookEntries(selectedSong.id).length})</button>
@@ -797,10 +979,95 @@ export default function Admin() {
                       <button style={s.btn} onClick={saveSongBasic} disabled={saving}>{saving ? 'Saving...' : (isAddingNew ? 'Create Song' : 'Save Changes')}</button>
                     </>
                   )}
-                  {songEditTab === 'lyrics' && !isAddingNew && (
+                  {songEditTab === 'versions' && !isAddingNew && (
                     <>
-                      <div style={s.formGroup}><label style={s.label}>Lyrics</label><textarea value={formLyrics} onChange={(e) => setFormLyrics(e.target.value)} style={{ ...s.textarea, minHeight: '400px' }} placeholder="Enter lyrics here..." /></div>
-                      <button style={s.btn} onClick={saveSongLyrics} disabled={saving}>{saving ? 'Saving...' : 'Save Lyrics'}</button>
+                      <button style={{ ...s.btn, marginBottom: '1rem' }} onClick={startAddVersion}>+ Add Version</button>
+                      {editingVersion && (
+                        <div style={{ ...s.card, border: '1px solid #22c55e', marginBottom: '1rem' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Label</label>
+                              <input type="text" value={versionLabel} onChange={(e) => setVersionLabel(e.target.value)} style={s.input} placeholder="e.g. Camp Version, Gender Neutral" />
+                            </div>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Type</label>
+                              <select value={versionType} onChange={(e) => setVersionType(e.target.value)} style={s.select}>
+                                {VERSION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Lyrics *</label>
+                            <textarea value={versionLyrics} onChange={(e) => setVersionLyrics(e.target.value)} style={{ ...s.textarea, minHeight: '250px' }} placeholder="Enter lyrics here..." />
+                          </div>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Version Notes</label>
+                            <input type="text" value={versionNotes} onChange={(e) => setVersionNotes(e.target.value)} style={s.input} placeholder="What's different about this version?" />
+                          </div>
+                          <div style={{ marginBottom: '1rem' }}>
+                            <label style={s.label}>Attributes</label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                              {VERSION_ATTRIBUTE_TYPES.map(attr => (
+                                <label key={attr.value} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: versionSelectedAttributes.includes(attr.value) ? '#22c55e33' : '#1e293b', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                  <input type="checkbox" checked={versionSelectedAttributes.includes(attr.value)} onChange={() => toggleVersionAttribute(attr.value)} />
+                                  {attr.label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={versionIsDefaultSingalong} onChange={(e) => setVersionIsDefaultSingalong(e.target.checked)} />
+                              <span>Default for Singalong</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={versionIsDefaultExplore} onChange={(e) => setVersionIsDefaultExplore(e.target.checked)} />
+                              <span>Default for Explore</span>
+                            </label>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button style={s.btn} onClick={saveVersion} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                            <button style={s.btnSec} onClick={cancelVersionEdit}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                      {getSongVersions(selectedSong.id).map(version => {
+                        const attrs = getVersionAttributes(version.id);
+                        return (
+                          <div key={version.id} style={s.card}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: 'bold' }}>{version.label || 'Untitled Version'}</span>
+                                  <span style={{ fontSize: '0.7rem', padding: '0.125rem 0.375rem', background: '#3b82f633', color: '#3b82f6', borderRadius: '0.25rem' }}>{VERSION_TYPES.find(t => t.value === version.version_type)?.label || version.version_type}</span>
+                                  {version.is_default_singalong && <span style={{ fontSize: '0.6rem', padding: '0.125rem 0.375rem', background: '#22c55e33', color: '#22c55e', borderRadius: '0.25rem' }}>★ Singalong</span>}
+                                  {version.is_default_explore && <span style={{ fontSize: '0.6rem', padding: '0.125rem 0.375rem', background: '#a855f733', color: '#a855f7', borderRadius: '0.25rem' }}>★ Explore</span>}
+                                </div>
+                                {version.version_notes && <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>{version.version_notes}</div>}
+                                {attrs.length > 0 && (
+                                  <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                                    {attrs.map(a => (
+                                      <span key={a.id} style={{ fontSize: '0.6rem', padding: '0.125rem 0.375rem', background: '#64748b33', color: '#94a3b8', borderRadius: '0.25rem' }}>
+                                        {VERSION_ATTRIBUTE_TYPES.find(t => t.value === a.attribute_type)?.label || a.attribute_type}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                                {!version.is_default_singalong && <button style={s.btnSmall} onClick={() => setAsDefault(version, 'singalong')}>Set Singalong</button>}
+                                {!version.is_default_explore && <button style={s.btnSmall} onClick={() => setAsDefault(version, 'explore')}>Set Explore</button>}
+                                <button style={s.btnSmall} onClick={() => startEditVersion(version)}>Edit</button>
+                                <button style={s.btnDanger} onClick={() => deleteVersion(version)}>Delete</button>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'pre-wrap', maxHeight: '100px', overflow: 'hidden', background: '#0f172a', padding: '0.5rem', borderRadius: '0.25rem' }}>
+                              {version.lyrics_content?.substring(0, 300)}{version.lyrics_content?.length > 300 && '...'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {getSongVersions(selectedSong.id).length === 0 && !editingVersion && <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No versions yet. Add one to include lyrics.</div>}
                     </>
                   )}
                   {songEditTab === 'notes' && !isAddingNew && (
@@ -1176,7 +1443,7 @@ export default function Admin() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={s.panel}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Lyrics</option><option value="song_notes">Notes</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
+              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Versions</option><option value="song_version_attributes">Version Attributes</option><option value="song_notes">Notes</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
               <div><label style={s.label}>User</label><input type="text" value={logUserFilter} onChange={(e) => setLogUserFilter(e.target.value)} placeholder="Filter..." style={s.input} /></div>
               <div><label style={s.label}>Limit</label><select value={logLimit} onChange={(e) => { setLogLimit(parseInt(e.target.value)); loadAllData(); }} style={s.select}><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></div>
             </div>
