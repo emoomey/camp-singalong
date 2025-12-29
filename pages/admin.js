@@ -172,8 +172,10 @@ export default function Admin() {
 
   // Check auth on load
   useEffect(() => { checkAuthSession(); }, []);
-  useEffect(() => { if (user) loadAllData(); }, [user]);
+  useEffect(() => { if (userProfile?.role === 'admin') loadAllData(); }, [userProfile]);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
+
+  const [userProfile, setUserProfile] = useState(null);
 
   const checkAuthSession = async () => {
     try {
@@ -185,9 +187,20 @@ export default function Admin() {
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
+        await loadUserProfile(userData.id);
       }
     } catch (error) { console.log('No existing session'); }
     setAuthChecked(true);
+  };
+
+  const loadUserProfile = async (userId) => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userId}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${localStorage.getItem('supabase_access_token')}` }
+      });
+      const data = await res.json();
+      if (data.length > 0) setUserProfile(data[0]);
+    } catch (error) { console.error('Error loading profile:', error); }
   };
 
   const handleLogin = async () => {
@@ -1455,6 +1468,23 @@ export default function Admin() {
           
           <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
             <a href="/" style={{ color: '#94a3b8', fontSize: '0.875rem', textDecoration: 'none' }}>← Back to Singalong</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin role check
+  if (userProfile?.role !== 'admin') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div style={{ background: '#1e293b', borderRadius: '1rem', padding: '2rem', maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Access Denied</h1>
+          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '1.5rem' }}>You need admin privileges to access this page.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <a href="/" style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#22c55e', color: '#fff', fontWeight: 'bold', textDecoration: 'none' }}>← Back to Singalong</a>
+            <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.875rem' }}>Sign out</button>
           </div>
         </div>
       </div>
