@@ -1176,7 +1176,8 @@ export default function Admin() {
     const pageInfo = getSongPage(song.id);
     const page = pageInfo.page || song.page;
     const aliases = getSongAliases(song.id).map(a => a.alias_title?.toLowerCase()).join(' ');
-    return song.title?.toLowerCase().includes(search) || page?.toLowerCase().includes(search) || song.section?.toLowerCase().includes(search) || aliases.includes(search); 
+    const lyrics = getSongVersions(song.id).map(v => v.lyrics_content?.toLowerCase() || '').join(' ');
+    return song.title?.toLowerCase().includes(search) || page?.toLowerCase().includes(search) || song.section?.toLowerCase().includes(search) || aliases.includes(search) || lyrics.includes(search); 
   });
   const filteredGroups = songGroups.filter(group => { const search = searchTerm.toLowerCase(); if (!search) return true; return group.group_name?.toLowerCase().includes(search); });
   const filteredChangeLog = changeLog.filter(log => { if (logTableFilter !== 'all' && log.table_name !== logTableFilter) return false; if (logUserFilter && !log.changed_by?.toLowerCase().includes(logUserFilter.toLowerCase())) return false; return true; });
@@ -1231,7 +1232,7 @@ export default function Admin() {
       {mainTab === 'songs' && (
         <div style={s.content}>
           <div style={s.panel}>
-            <input type="text" placeholder="Search songs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={s.searchInput} />
+            <input type="text" placeholder="Search title, lyrics, aliases..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={s.searchInput} />
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)} style={{ ...s.select, flex: 1 }}>
                 <option value="all">All Sections</option>
@@ -1239,15 +1240,26 @@ export default function Admin() {
               </select>
               <button style={s.btn} onClick={startAddNewSong}>+ Add Song</button>
             </div>
+            <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '0.5rem' }}>📄 lyrics 📝 notes 🎵 media ⚠️ flags 🏷️ aliases 👥 groups 📑 versions</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>{filteredSongs.length} songs</div>
             <div style={s.songList}>
               {filteredSongs.map(song => {
                 const pageInfo = getSongPage(song.id);
                 const displayPage = pageInfo.page || song.page || 'N/A';
+                const hasLyrics = getDefaultVersion(song.id)?.lyrics_content;
+                const hasNotes = getSongNotes(song.id).length > 0;
+                const hasMedia = getSongMedia(song.id).length > 0;
+                const hasFlags = getSongFlags(song.id).length > 0;
+                const hasAliases = getSongAliases(song.id).length > 0;
+                const inGroups = getSongGroups(song.id).length > 0;
+                const multipleVersions = getSongVersions(song.id).length > 1;
                 return (
                   <div key={song.id} style={s.songItem(selectedSong?.id === song.id)} onClick={() => selectSong(song)}>
                     <div style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{song.title}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Section {song.section} • Page {displayPage}{getDefaultVersion(song.id)?.lyrics_content && ' 📄'}{getSongFlags(song.id).length > 0 && ' ⚠️'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Section {song.section} • Page {displayPage}
+                      {hasLyrics && ' 📄'}{hasNotes && ' 📝'}{hasMedia && ' 🎵'}{hasFlags && ' ⚠️'}{hasAliases && ' 🏷️'}{inGroups && ' 👥'}{multipleVersions && ' 📑'}
+                    </div>
                   </div>
                 );
               })}
