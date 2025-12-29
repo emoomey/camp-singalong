@@ -68,6 +68,7 @@ export default function Home() {
   const [songGroups, setSongGroups] = useState([]);
   const [songGroupMembers, setSongGroupMembers] = useState([]);
   const [songbookEntries, setSongbookEntries] = useState([]);
+  const [songbooks, setSongbooks] = useState([]);
   
   // Group prompt modal
   const [groupPrompt, setGroupPrompt] = useState(null); // { song, groups } when showing prompt
@@ -90,7 +91,7 @@ export default function Home() {
 
   const loadSongs = async () => {
     try {
-      const [songsRes, versionsRes, notesRes, groupsRes, membersRes, entriesRes] = await Promise.all([
+      const [songsRes, versionsRes, notesRes, groupsRes, membersRes, entriesRes, songbooksRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         }),
@@ -108,6 +109,9 @@ export default function Home() {
         }),
         fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?select=*`, {
           headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/songbooks?select=*&order=display_order.asc`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         })
       ]);
       setAllSongs(await songsRes.json());
@@ -116,6 +120,7 @@ export default function Home() {
       setSongGroups(await groupsRes.json());
       setSongGroupMembers(await membersRes.json());
       setSongbookEntries(await entriesRes.json());
+      setSongbooks(await songbooksRes.json());
     } catch (error) { console.error('Error loading songs:', error); }
   };
 
@@ -143,10 +148,41 @@ export default function Home() {
       .sort((a, b) => a.position_in_group - b.position_in_group);
   };
 
-  // Get page info for a group
+  // Get page info for a group from songbook entries
   const getGroupPage = (groupId) => {
-    const entry = songbookEntries.find(e => e.song_group_id === groupId);
-    return entry ? { page: entry.page, section: entry.section, old_page: entry.old_page } : null;
+    // Get primary songbook entry, or fall back to any entry
+    const primarySongbook = songbooks.find(sb => sb.is_primary);
+    let entry = songbookEntries.find(e => e.song_group_id === groupId && e.songbook_id === primarySongbook?.id);
+    if (!entry) {
+      entry = songbookEntries.find(e => e.song_group_id === groupId);
+    }
+    return entry ? { page: entry.page, section: entry.section } : null;
+  };
+
+  // Get page info for a song from songbook entries
+  const getSongPage = (songId) => {
+    // Get primary songbook entry
+    const primarySongbook = songbooks.find(sb => sb.is_primary);
+    const primaryEntry = songbookEntries.find(e => e.song_id === songId && e.songbook_id === primarySongbook?.id);
+    
+    // Get old songbook entry (display_order 2 = pre-2025)
+    const oldSongbook = songbooks.find(sb => sb.display_order === 2);
+    const oldEntry = songbookEntries.find(e => e.song_id === songId && e.songbook_id === oldSongbook?.id);
+    
+    return {
+      page: primaryEntry?.page || null,
+      section: primaryEntry?.section || null,
+      old_page: oldEntry?.page || null
+    };
+  };
+
+  // Get display string for page info
+  const formatPageDisplay = (pageInfo) => {
+    if (!pageInfo) return 'N/A';
+    const { page, old_page } = pageInfo;
+    if (!page && !old_page) return 'N/A';
+    if (page && old_page) return `${page} (${old_page})`;
+    return page || old_page || 'N/A';
   };
 
   // Get notes for a song by type
@@ -305,6 +341,7 @@ export default function Home() {
     if (queue.some(s => s.song_title === song.title)) return;
     const maxPosition = queue.length > 0 ? Math.max(...queue.map(s => s.position)) : -1;
     const version = getDefaultVersion(song.id);
+    const pageInfo = getSongPage(song.id);
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/queue`, {
         method: 'POST',
@@ -315,11 +352,11 @@ export default function Home() {
         body: JSON.stringify({
           room_id: roomCode,
           song_title: song.title,
-          song_page: song.page,
-          song_section: song.section,
+          song_page: pageInfo.page || song.page,
+          song_section: pageInfo.section || song.section,
           requester: requester,
           position: maxPosition + 1,
-          old_page: song.old_page || null,
+          old_page: pageInfo.old_page || song.old_page || null,
           has_lyrics: !!version?.lyrics_content,
           lyrics_text: version?.lyrics_content || null,
           is_group: false,
@@ -361,7 +398,7 @@ export default function Home() {
           song_section: pageInfo?.section || 'S',
           requester: requester,
           position: maxPosition + 1,
-          old_page: pageInfo?.old_page || null,
+          old_page: null, // Groups don't have old_page in new structure
           has_lyrics: true,
           lyrics_text: combinedLyrics,
           is_group: true,
@@ -504,8 +541,14 @@ export default function Home() {
     const searchLower = searchTerm.toLowerCase().trim();
     if (!searchLower) return true;
     const matchesTitle = song.title.toLowerCase().includes(searchLower);
-    const matchesPage = (song.page && song.page.toLowerCase().includes(searchLower)) || 
-                        (song.old_page && song.old_page.toLowerCase().includes(searchLower));
+    
+    // Get page info from songbook entries (or fall back to song table)
+    const pageInfo = getSongPage(song.id);
+    const page = pageInfo.page || song.page;
+    const oldPage = pageInfo.old_page || song.old_page;
+    const matchesPage = (page && page.toLowerCase().includes(searchLower)) || 
+                        (oldPage && oldPage.toLowerCase().includes(searchLower));
+    
     const sectionName = SECTION_INFO[song.section] || "";
     const matchesSectionSearch = song.section?.toLowerCase() === searchLower || 
                            sectionName.toLowerCase().includes(searchLower);
@@ -561,7 +604,7 @@ export default function Home() {
         </div>
         <div className="fixed bottom-4 left-0 right-0 text-center">
         
-         <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF5jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform"
+         <a href="https://docs.google.com/forms/d/e/1FAIpQLScwkZP7oISooLkhx-gksF8jjmjgMi85Z4WsKEC5eWU_Cdm9sg/viewform?usp=header"
           target="_blank"
           rel="noopener noreferrer"
           className="text-gray-400 text-sm hover:text-gray-300 transition-colors"
@@ -1101,7 +1144,7 @@ if (view === 'display' && showLyrics && currentSong) {
                 className={`w-full p-4 rounded-xl text-left border-2 transition-colors ${isDark ? 'border-slate-700 hover:border-slate-500' : 'border-gray-200 hover:border-gray-400'}`}
               >
                 <div className="font-bold">Just this song</div>
-                <div className="text-sm opacity-60">{groupPrompt.song.title} • Page {groupPrompt.song.page}</div>
+                <div className="text-sm opacity-60">{groupPrompt.song.title} • Page {getSongPage(groupPrompt.song.id).page || groupPrompt.song.page || 'N/A'}</div>
               </button>
               
               {/* Option: Add as group(s) */}
@@ -1329,15 +1372,19 @@ if (view === 'display' && showLyrics && currentSong) {
             className={`w-full p-4 rounded-2xl mb-4 border outline-none focus:ring-2 focus:ring-green-500 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
           />
           <div className="max-h-80 overflow-y-auto space-y-2 mb-6">
-            {filteredSongs.map(song => (
-              <div key={song.id} className="flex justify-between items-center p-3 rounded-xl border border-black/5 bg-black/5">
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-sm truncate">{song.title} {songHasLyrics(song.id) && '📄'}</div>
-                  <div className="text-[10px] opacity-50 font-black uppercase tracking-tighter">Section {song.section} • Page {song.page}</div>
+            {filteredSongs.map(song => {
+              const pageInfo = getSongPage(song.id);
+              const displayPage = pageInfo.page || song.page || 'N/A';
+              return (
+                <div key={song.id} className="flex justify-between items-center p-3 rounded-xl border border-black/5 bg-black/5">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-sm truncate">{song.title} {songHasLyrics(song.id) && '📄'}</div>
+                    <div className="text-[10px] opacity-50 font-black uppercase tracking-tighter">Section {song.section} • Page {displayPage}</div>
+                  </div>
+                  <button onClick={() => addToQueue(song)} className="ml-3 bg-green-600 text-white w-10 h-10 rounded-full font-bold flex items-center justify-center">＋</button>
                 </div>
-                <button onClick={() => addToQueue(song)} className="ml-3 bg-green-600 text-white w-10 h-10 rounded-full font-bold flex items-center justify-center">＋</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="border-t pt-4">
             <p className="text-[10px] font-black uppercase opacity-40 mb-2">Unlisted Song</p>
