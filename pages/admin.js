@@ -98,6 +98,22 @@ export default function Admin() {
   const [logUserFilter, setLogUserFilter] = useState('');
   const [logLimit, setLogLimit] = useState(100);
 
+  // Songbook entry editing (for songs)
+  const [editingSongbookEntry, setEditingSongbookEntry] = useState(null);
+  const [entrySongbookId, setEntrySongbookId] = useState('');
+  const [entrySection, setEntrySection] = useState('');
+  const [entryPage, setEntryPage] = useState('');
+  
+  // Songbook management
+  const [selectedSongbook, setSelectedSongbook] = useState(null);
+  const [isAddingNewSongbook, setIsAddingNewSongbook] = useState(false);
+  const [formSongbookName, setFormSongbookName] = useState('');
+  const [formSongbookShortName, setFormSongbookShortName] = useState('');
+  const [formSongbookDescription, setFormSongbookDescription] = useState('');
+  const [formSongbookHasSections, setFormSongbookHasSections] = useState(false);
+  const [formSongbookIsPrimary, setFormSongbookIsPrimary] = useState(false);
+  const [formSongbookDisplayOrder, setFormSongbookDisplayOrder] = useState(10);
+
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
@@ -151,6 +167,10 @@ export default function Admin() {
     const oldEntry = songbookEntries.find(e => e.song_id === songId && e.songbook_id === oldSongbook?.id);
     return { page: primaryEntry?.page || null, section: primaryEntry?.section || null, old_page: oldEntry?.page || null };
   };
+  
+  // Get all songbook entries for a song
+  const getSongSongbookEntries = (songId) => songbookEntries.filter(e => e.song_id === songId);
+  
   const getSongNotes = (songId) => songNotes.filter(n => n.song_id === songId);
   const getSongSections = (songId) => songSections.filter(s => s.song_id === songId);
   const getSongAliases = (songId) => songAliases.filter(a => a.song_id === songId);
@@ -339,6 +359,126 @@ export default function Admin() {
     } catch (error) { showMessage('❌ Error removing section'); }
   };
 
+  // Songbook entry management for songs
+  const startAddSongbookEntry = () => {
+    setEditingSongbookEntry({ isNew: true });
+    setEntrySongbookId('');
+    setEntrySection('');
+    setEntryPage('');
+  };
+
+  const startEditSongbookEntry = (entry) => {
+    setEditingSongbookEntry(entry);
+    setEntrySongbookId(entry.songbook_id);
+    setEntrySection(entry.section || '');
+    setEntryPage(entry.page || '');
+  };
+
+  const cancelSongbookEntryEdit = () => setEditingSongbookEntry(null);
+
+  const saveSongbookEntry = async () => {
+    if (!entrySongbookId) { showMessage('❌ Please select a songbook'); return; }
+    if (!entryPage.trim()) { showMessage('❌ Page is required'); return; }
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const entryData = { song_id: selectedSong.id, songbook_id: entrySongbookId, section: entrySection || null, page: entryPage.trim() };
+      if (editingSongbookEntry.isNew) {
+        // Check for duplicate
+        if (songbookEntries.some(e => e.song_id === selectedSong.id && e.songbook_id === entrySongbookId)) {
+          showMessage('❌ Entry already exists for this songbook'); setSaving(false); return;
+        }
+        await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
+        const sb = songbooks.find(s => s.id === entrySongbookId);
+        await logChange('add', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', null, `${sb?.short_name}: ${entryPage.trim()}`);
+        showMessage('✅ Songbook entry added!');
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?id=eq.${editingSongbookEntry.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
+        await logChange('edit', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', editingSongbookEntry.page, entryPage.trim());
+        showMessage('✅ Songbook entry updated!');
+      }
+      setEditingSongbookEntry(null); await loadAllData();
+    } catch (error) { console.error(error); showMessage('❌ Error saving entry'); }
+    setSaving(false);
+  };
+
+  const deleteSongbookEntry = async (entry) => {
+    if (!confirm('Delete this songbook entry?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?id=eq.${entry.id}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+      const sb = songbooks.find(s => s.id === entry.songbook_id);
+      await logChange('delete', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', `${sb?.short_name}: ${entry.page}`, null);
+      showMessage('✅ Entry deleted'); await loadAllData();
+    } catch (error) { showMessage('❌ Error deleting entry'); }
+  };
+
+  // Songbook management
+  const selectSongbook = (songbook) => {
+    setSelectedSongbook(songbook); setIsAddingNewSongbook(false);
+    setFormSongbookName(songbook.name || '');
+    setFormSongbookShortName(songbook.short_name || '');
+    setFormSongbookDescription(songbook.description || '');
+    setFormSongbookHasSections(songbook.has_sections || false);
+    setFormSongbookIsPrimary(songbook.is_primary || false);
+    setFormSongbookDisplayOrder(songbook.display_order || 10);
+  };
+
+  const startAddNewSongbook = () => {
+    setSelectedSongbook(null); setIsAddingNewSongbook(true);
+    setFormSongbookName(''); setFormSongbookShortName(''); setFormSongbookDescription('');
+    setFormSongbookHasSections(false); setFormSongbookIsPrimary(false);
+    setFormSongbookDisplayOrder(songbooks.length + 1);
+  };
+
+  const cancelSongbookEdit = () => { setSelectedSongbook(null); setIsAddingNewSongbook(false); };
+
+  const saveSongbook = async () => {
+    if (!sessionName.trim()) { showMessage('❌ Please enter your name first'); return; }
+    if (!formSongbookName.trim()) { showMessage('❌ Name is required'); return; }
+    if (!formSongbookShortName.trim()) { showMessage('❌ Short name is required'); return; }
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const data = { 
+        name: formSongbookName.trim(), 
+        short_name: formSongbookShortName.trim(), 
+        description: formSongbookDescription.trim() || null,
+        has_sections: formSongbookHasSections,
+        is_primary: formSongbookIsPrimary,
+        display_order: parseInt(formSongbookDisplayOrder) || 10
+      };
+      if (isAddingNewSongbook) {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/songbooks`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=representation' }, body: JSON.stringify(data) });
+        if (response.ok) { 
+          const created = await response.json(); 
+          await logChange('add', 'songbooks', null, created[0].name);
+          showMessage('✅ Songbook created!'); 
+          setIsAddingNewSongbook(false); 
+          await loadAllData(); 
+          selectSongbook(created[0]); 
+        }
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/songbooks?id=eq.${selectedSongbook.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(data) });
+        await logChange('edit', 'songbooks', null, data.name, 'songbook', selectedSongbook.name, data.name);
+        showMessage('✅ Songbook updated!'); 
+        await loadAllData();
+        setSelectedSongbook({ ...selectedSongbook, ...data });
+      }
+    } catch (error) { console.error(error); showMessage('❌ Error saving songbook'); }
+    setSaving(false);
+  };
+
+  const deleteSongbook = async () => {
+    if (!confirm(`Delete "${selectedSongbook.name}"? This will also delete all song entries for this songbook.`)) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/songbooks?id=eq.${selectedSongbook.id}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+      await logChange('delete', 'songbooks', null, selectedSongbook.name);
+      showMessage('✅ Songbook deleted'); 
+      setSelectedSongbook(null);
+      await loadAllData();
+    } catch (error) { showMessage('❌ Error deleting songbook'); }
+  };
+
   const selectGroup = (group) => {
     setSelectedGroup(group); setSelectedSong(null); setIsAddingNewGroup(false);
     setFormGroupName(group.group_name); setFormGroupType(group.group_type || 'round_group');
@@ -475,6 +615,7 @@ export default function Admin() {
       <div style={s.mainTabs}>
         <button style={s.mainTab(mainTab === 'songs')} onClick={() => setMainTab('songs')}>Songs</button>
         <button style={s.mainTab(mainTab === 'groups')} onClick={() => setMainTab('groups')}>Groups</button>
+        <button style={s.mainTab(mainTab === 'songbooks')} onClick={() => setMainTab('songbooks')}>Songbooks</button>
         <button style={s.mainTab(mainTab === 'changelog')} onClick={() => setMainTab('changelog')}>Change Log</button>
       </div>
 
@@ -517,6 +658,7 @@ export default function Admin() {
                     <button style={s.editTab(songEditTab === 'basic')} onClick={() => setSongEditTab('basic')}>Basic Info</button>
                     <button style={s.editTab(songEditTab === 'lyrics')} onClick={() => setSongEditTab('lyrics')}>Lyrics</button>
                     <button style={s.editTab(songEditTab === 'notes')} onClick={() => setSongEditTab('notes')}>Notes ({getSongNotes(selectedSong.id).length})</button>
+                    <button style={s.editTab(songEditTab === 'songbooks')} onClick={() => setSongEditTab('songbooks')}>Songbooks ({getSongSongbookEntries(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'sections')} onClick={() => setSongEditTab('sections')}>Sections</button>
                     <button style={s.editTab(songEditTab === 'aliases')} onClick={() => setSongEditTab('aliases')}>Aliases ({getSongAliases(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'groups')} onClick={() => setSongEditTab('groups')}>Groups ({getSongGroups(selectedSong.id).length})</button>
@@ -561,6 +703,64 @@ export default function Admin() {
                         </div>
                       ))}
                       {getSongNotes(selectedSong.id).length === 0 && !editingNote && <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No notes yet</div>}
+                    </>
+                  )}
+                  {songEditTab === 'songbooks' && !isAddingNew && (
+                    <>
+                      <button style={{ ...s.btn, marginBottom: '1rem' }} onClick={startAddSongbookEntry}>+ Add to Songbook</button>
+                      {editingSongbookEntry && (
+                        <div style={{ ...s.card, border: '1px solid #22c55e', marginBottom: '1rem' }}>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Songbook *</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <select value={entrySongbookId} onChange={(e) => setEntrySongbookId(e.target.value)} style={{ ...s.select, flex: 1 }}>
+                                <option value="">Select songbook...</option>
+                                {songbooks.map(sb => <option key={sb.id} value={sb.id}>{sb.name}</option>)}
+                              </select>
+                              <button style={s.btnSec} onClick={() => { startAddNewSongbook(); setMainTab('songbooks'); }}>+ New</button>
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Section</label>
+                              <select value={entrySection} onChange={(e) => setEntrySection(e.target.value)} style={s.select}>
+                                <option value="">No section</option>
+                                {Object.entries(SECTION_INFO).map(([k, n]) => <option key={k} value={k}>{k} - {n}</option>)}
+                              </select>
+                            </div>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Page *</label>
+                              <input type="text" value={entryPage} onChange={(e) => setEntryPage(e.target.value)} style={s.input} placeholder="e.g. A-1, 42" />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button style={s.btn} onClick={saveSongbookEntry} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                            <button style={s.btnSec} onClick={cancelSongbookEntryEdit}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                      {getSongSongbookEntries(selectedSong.id).map(entry => {
+                        const sb = songbooks.find(s => s.id === entry.songbook_id);
+                        return (
+                          <div key={entry.id} style={s.card}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontWeight: 'bold', color: '#22c55e' }}>{sb?.name || 'Unknown Songbook'}</div>
+                                <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                                  {entry.section && `Section ${entry.section} • `}Page {entry.page || 'N/A'}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                <button style={s.btnSmall} onClick={() => startEditSongbookEntry(entry)}>Edit</button>
+                                <button style={s.btnDanger} onClick={() => deleteSongbookEntry(entry)}>Delete</button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {getSongSongbookEntries(selectedSong.id).length === 0 && !editingSongbookEntry && (
+                        <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>Not in any songbooks yet</div>
+                      )}
                     </>
                   )}
                   {songEditTab === 'sections' && !isAddingNew && (
@@ -694,11 +894,101 @@ export default function Admin() {
         </div>
       )}
 
+      {mainTab === 'songbooks' && (
+        <div style={s.content}>
+          <div style={s.panel}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <button style={s.btn} onClick={startAddNewSongbook}>+ Add Songbook</button>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>{songbooks.length} songbooks</div>
+            <div style={s.songList}>
+              {songbooks.map(sb => (
+                <div key={sb.id} style={s.songItem(selectedSongbook?.id === sb.id)} onClick={() => selectSongbook(sb)}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{sb.name} {sb.is_primary && <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>★ Primary</span>}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    {sb.short_name} • {songbookEntries.filter(e => e.songbook_id === sb.id).length} songs
+                    {sb.has_sections && ' • Has sections'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={s.panel}>
+            {!selectedSongbook && !isAddingNewSongbook ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>Select a songbook to edit or click "Add Songbook"</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{isAddingNewSongbook ? 'Add New Songbook' : formSongbookName}</h2>
+                  <button style={s.btnSec} onClick={cancelSongbookEdit}>✕ Close</button>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  <div style={s.formGroup}>
+                    <label style={s.label}>Name *</label>
+                    <input type="text" value={formSongbookName} onChange={(e) => setFormSongbookName(e.target.value)} style={s.input} placeholder="e.g. Dodger's Songbook 2025" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Short Name *</label>
+                      <input type="text" value={formSongbookShortName} onChange={(e) => setFormSongbookShortName(e.target.value)} style={s.input} placeholder="e.g. 2025" />
+                    </div>
+                    <div style={s.formGroup}>
+                      <label style={s.label}>Display Order</label>
+                      <input type="number" value={formSongbookDisplayOrder} onChange={(e) => setFormSongbookDisplayOrder(e.target.value)} style={s.input} />
+                    </div>
+                  </div>
+                  <div style={s.formGroup}>
+                    <label style={s.label}>Description</label>
+                    <textarea value={formSongbookDescription} onChange={(e) => setFormSongbookDescription(e.target.value)} style={s.textarea} placeholder="Optional description..." />
+                  </div>
+                  <div style={{ display: 'flex', gap: '2rem', marginBottom: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={formSongbookHasSections} onChange={(e) => setFormSongbookHasSections(e.target.checked)} />
+                      <span>Has section letters (A-Z)</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={formSongbookIsPrimary} onChange={(e) => setFormSongbookIsPrimary(e.target.checked)} />
+                      <span>Primary songbook</span>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button style={s.btn} onClick={saveSongbook} disabled={saving}>{saving ? 'Saving...' : (isAddingNewSongbook ? 'Create Songbook' : 'Save Changes')}</button>
+                    {!isAddingNewSongbook && <button style={s.btnDanger} onClick={deleteSongbook}>Delete Songbook</button>}
+                  </div>
+                  
+                  {!isAddingNewSongbook && (
+                    <>
+                      <hr style={{ margin: '2rem 0', borderColor: '#334155' }} />
+                      <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem' }}>Songs in this Songbook ({songbookEntries.filter(e => e.songbook_id === selectedSongbook.id).length})</h3>
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {songbookEntries.filter(e => e.songbook_id === selectedSongbook.id).map(entry => {
+                          const song = allSongs.find(s => s.id === entry.song_id);
+                          const group = songGroups.find(g => g.id === entry.song_group_id);
+                          return (
+                            <div key={entry.id} style={{ padding: '0.5rem', background: '#0f172a', borderRadius: '0.25rem', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{song?.title || group?.group_name || 'Unknown'}</span>
+                              <span style={{ color: '#94a3b8' }}>{entry.section && `${entry.section}-`}{entry.page}</span>
+                            </div>
+                          );
+                        })}
+                        {songbookEntries.filter(e => e.songbook_id === selectedSongbook.id).length === 0 && (
+                          <div style={{ color: '#64748b', textAlign: 'center', padding: '1rem' }}>No songs in this songbook yet</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {mainTab === 'changelog' && (
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={s.panel}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Lyrics</option><option value="song_notes">Notes</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option></select></div>
+              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Lyrics</option><option value="song_notes">Notes</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
               <div><label style={s.label}>User</label><input type="text" value={logUserFilter} onChange={(e) => setLogUserFilter(e.target.value)} placeholder="Filter..." style={s.input} /></div>
               <div><label style={s.label}>Limit</label><select value={logLimit} onChange={(e) => { setLogLimit(parseInt(e.target.value)); loadAllData(); }} style={s.select}><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></div>
             </div>
