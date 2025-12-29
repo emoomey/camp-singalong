@@ -67,11 +67,7 @@ export default function Home() {
   
   // Session history
   const [sessionHistory, setSessionHistory] = useState([]);
-  const [historyLookback, setHistoryLookback] = useState(3); // number of sessions;
-  const [copied, setCopied] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [showLyricsOnTV, setShowLyricsOnTV] = useState(false);
+  const [historyLookback, setHistoryLookback] = useState(3); // number of sessions
   
   // Tag filtering state
   const [tags, setTags] = useState([]);
