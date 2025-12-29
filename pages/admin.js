@@ -114,13 +114,30 @@ export default function Admin() {
   const [formSongbookIsPrimary, setFormSongbookIsPrimary] = useState(false);
   const [formSongbookDisplayOrder, setFormSongbookDisplayOrder] = useState(10);
 
+  // Additional song metadata
+  const [formAuthor, setFormAuthor] = useState('');
+  const [formLyricist, setFormLyricist] = useState('');
+  const [formOrigin, setFormOrigin] = useState('');
+  const [formOriginalLanguage, setFormOriginalLanguage] = useState('');
+  const [formTuneOf, setFormTuneOf] = useState('');
+
+  // Song media
+  const [songMedia, setSongMedia] = useState([]);
+  const [editingMedia, setEditingMedia] = useState(null);
+  const [mediaType, setMediaType] = useState('youtube');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaTitle, setMediaTitle] = useState('');
+  const [mediaDescription, setMediaDescription] = useState('');
+  const [mediaDisplayExplore, setMediaDisplayExplore] = useState(true);
+  const [mediaDisplaySingalong, setMediaDisplaySingalong] = useState(false);
+
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
   const loadAllData = async () => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-      const [songsRes, versionsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, logRes] = await Promise.all([
+      const [songsRes, versionsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, logRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_notes?select=*`, { headers }),
@@ -130,6 +147,7 @@ export default function Admin() {
         fetch(`${SUPABASE_URL}/rest/v1/song_group_members?select=*&order=position_in_group.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/songbooks?select=*&order=display_order.asc`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_media?select=*&order=display_order.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/change_log?select=*&order=created_at.desc&limit=${logLimit}`, { headers })
       ]);
       setAllSongs(await songsRes.json());
@@ -141,6 +159,7 @@ export default function Admin() {
       setSongGroupMembers(await membersRes.json());
       setSongbookEntries(await entriesRes.json());
       setSongbooks(await songbooksRes.json());
+      setSongMedia(await mediaRes.json());
       setChangeLog(await logRes.json());
     } catch (error) { console.error('Error loading data:', error); }
   };
@@ -177,6 +196,7 @@ export default function Admin() {
   const getSongGroups = (songId) => songGroupMembers.filter(m => m.song_id === songId).map(m => songGroups.find(g => g.id === m.group_id)).filter(Boolean);
   const getGroupMembers = (groupId) => songGroupMembers.filter(m => m.group_id === groupId).sort((a, b) => a.position_in_group - b.position_in_group);
   const getGroupPage = (groupId) => songbookEntries.find(e => e.song_group_id === groupId);
+  const getSongMedia = (songId) => songMedia.filter(m => m.song_id === songId);
 
   const selectSong = (song) => {
     setSelectedSong(song); setSelectedGroup(null); setIsAddingNew(false);
@@ -186,13 +206,21 @@ export default function Admin() {
     setFormOldPage(pageInfo.old_page || song.old_page || '');
     setFormSection(pageInfo.section || song.section || 'A'); 
     setFormYearWritten(song.year_written || '');
+    setFormAuthor(song.author || '');
+    setFormLyricist(song.lyricist || '');
+    setFormOrigin(song.origin || '');
+    setFormOriginalLanguage(song.original_language || '');
+    setFormTuneOf(song.tune_of || '');
     setFormLyrics(getDefaultVersion(song.id)?.lyrics_content || ''); 
     setSongEditTab('basic');
+    setEditingMedia(null);
   };
 
   const startAddNewSong = () => {
     setSelectedSong(null); setSelectedGroup(null); setIsAddingNew(true);
-    setFormTitle(''); setFormPage(''); setFormOldPage(''); setFormSection('A'); setFormYearWritten(''); setFormLyrics(''); setSongEditTab('basic');
+    setFormTitle(''); setFormPage(''); setFormOldPage(''); setFormSection('A'); setFormYearWritten(''); 
+    setFormAuthor(''); setFormLyricist(''); setFormOrigin(''); setFormOriginalLanguage(''); setFormTuneOf('');
+    setFormLyrics(''); setSongEditTab('basic');
   };
 
   const cancelSongEdit = () => { setSelectedSong(null); setIsAddingNew(false); };
@@ -203,8 +231,16 @@ export default function Admin() {
     setSaving(true);
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
     try {
-      // Song data (only title and year_written - page/section goes to songbook_entries)
-      const songData = { title: formTitle.trim(), year_written: formYearWritten ? parseInt(formYearWritten) : null };
+      // Song data (title, year, and metadata - page/section goes to songbook_entries)
+      const songData = { 
+        title: formTitle.trim(), 
+        year_written: formYearWritten ? parseInt(formYearWritten) : null,
+        author: formAuthor.trim() || null,
+        lyricist: formLyricist.trim() || null,
+        origin: formOrigin.trim() || null,
+        original_language: formOriginalLanguage.trim() || null,
+        tune_of: formTuneOf.trim() || null
+      };
       
       if (isAddingNew) {
         // Create the song first
@@ -235,6 +271,8 @@ export default function Admin() {
         // Log changes
         if (selectedSong.title !== songData.title) await logChange('edit', 'songs', selectedSong.id, songData.title, 'title', selectedSong.title, songData.title);
         if (selectedSong.year_written !== songData.year_written) await logChange('edit', 'songs', selectedSong.id, songData.title, 'year_written', selectedSong.year_written, songData.year_written);
+        if (selectedSong.author !== songData.author) await logChange('edit', 'songs', selectedSong.id, songData.title, 'author', selectedSong.author, songData.author);
+        if (selectedSong.origin !== songData.origin) await logChange('edit', 'songs', selectedSong.id, songData.title, 'origin', selectedSong.origin, songData.origin);
         
         // Update songs table (also keep section/page for backward compatibility during transition)
         await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${selectedSong.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify({ ...songData, section: formSection, page: formPage.trim() || null, old_page: formOldPage.trim() || null }) });
@@ -479,6 +517,83 @@ export default function Admin() {
     } catch (error) { showMessage('❌ Error deleting songbook'); }
   };
 
+  // Media management
+  const MEDIA_TYPES = [
+    { value: 'youtube', label: 'YouTube' },
+    { value: 'vimeo', label: 'Vimeo' },
+    { value: 'apple_music', label: 'Apple Music' },
+    { value: 'spotify', label: 'Spotify' },
+    { value: 'soundcloud', label: 'SoundCloud' },
+    { value: 'audio_file', label: 'Audio File' },
+    { value: 'pdf', label: 'PDF (Sheet Music)' },
+    { value: 'musicxml', label: 'MusicXML' },
+    { value: 'musescore', label: 'MuseScore' },
+    { value: 'imslp', label: 'IMSLP' },
+    { value: 'flat_io', label: 'Flat.io' },
+    { value: 'noteflight', label: 'Noteflight' },
+    { value: 'external_link', label: 'Other Link' }
+  ];
+
+  const startAddMedia = () => {
+    setEditingMedia({ isNew: true });
+    setMediaType('youtube');
+    setMediaUrl('');
+    setMediaTitle('');
+    setMediaDescription('');
+    setMediaDisplayExplore(true);
+    setMediaDisplaySingalong(false);
+  };
+
+  const startEditMedia = (media) => {
+    setEditingMedia(media);
+    setMediaType(media.media_type);
+    setMediaUrl(media.url);
+    setMediaTitle(media.title || '');
+    setMediaDescription(media.description || '');
+    setMediaDisplayExplore(media.display_explore !== false);
+    setMediaDisplaySingalong(media.display_singalong === true);
+  };
+
+  const cancelMediaEdit = () => setEditingMedia(null);
+
+  const saveMedia = async () => {
+    if (!mediaUrl.trim()) { showMessage('❌ URL is required'); return; }
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const mediaData = { 
+        song_id: selectedSong.id, 
+        media_type: mediaType, 
+        url: mediaUrl.trim(),
+        title: mediaTitle.trim() || null,
+        description: mediaDescription.trim() || null,
+        display_explore: mediaDisplayExplore,
+        display_singalong: mediaDisplaySingalong,
+        display_order: editingMedia.isNew ? getSongMedia(selectedSong.id).length : editingMedia.display_order
+      };
+      if (editingMedia.isNew) {
+        await fetch(`${SUPABASE_URL}/rest/v1/song_media`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(mediaData) });
+        await logChange('add', 'song_media', selectedSong.id, selectedSong.title, 'media', null, `${mediaType}: ${mediaUrl.trim()}`);
+        showMessage('✅ Media added!');
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/song_media?id=eq.${editingMedia.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(mediaData) });
+        await logChange('edit', 'song_media', selectedSong.id, selectedSong.title, 'media', editingMedia.url, mediaUrl.trim());
+        showMessage('✅ Media updated!');
+      }
+      setEditingMedia(null); await loadAllData();
+    } catch (error) { console.error(error); showMessage('❌ Error saving media'); }
+    setSaving(false);
+  };
+
+  const deleteMedia = async (media) => {
+    if (!confirm('Delete this media link?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/song_media?id=eq.${media.id}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+      await logChange('delete', 'song_media', selectedSong.id, selectedSong.title, 'media', `${media.media_type}: ${media.url}`, null);
+      showMessage('✅ Media deleted'); await loadAllData();
+    } catch (error) { showMessage('❌ Error deleting media'); }
+  };
+
   const selectGroup = (group) => {
     setSelectedGroup(group); setSelectedSong(null); setIsAddingNewGroup(false);
     setFormGroupName(group.group_name); setFormGroupType(group.group_type || 'round_group');
@@ -658,6 +773,7 @@ export default function Admin() {
                     <button style={s.editTab(songEditTab === 'basic')} onClick={() => setSongEditTab('basic')}>Basic Info</button>
                     <button style={s.editTab(songEditTab === 'lyrics')} onClick={() => setSongEditTab('lyrics')}>Lyrics</button>
                     <button style={s.editTab(songEditTab === 'notes')} onClick={() => setSongEditTab('notes')}>Notes ({getSongNotes(selectedSong.id).length})</button>
+                    <button style={s.editTab(songEditTab === 'media')} onClick={() => setSongEditTab('media')}>Media ({getSongMedia(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'songbooks')} onClick={() => setSongEditTab('songbooks')}>Songbooks ({getSongSongbookEntries(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'sections')} onClick={() => setSongEditTab('sections')}>Sections</button>
                     <button style={s.editTab(songEditTab === 'aliases')} onClick={() => setSongEditTab('aliases')}>Aliases ({getSongAliases(selectedSong.id).length})</button>
@@ -673,7 +789,16 @@ export default function Admin() {
                         <div style={s.formGroup}><label style={s.label}>Page</label><input type="text" value={formPage} onChange={(e) => setFormPage(e.target.value)} style={s.input} placeholder="e.g. A-1" /></div>
                         <div style={s.formGroup}><label style={s.label}>Old Page</label><input type="text" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)} style={s.input} /></div>
                       </div>
-                      <div style={s.formGroup}><label style={s.label}>Year Written</label><input type="number" value={formYearWritten} onChange={(e) => setFormYearWritten(e.target.value)} style={{ ...s.input, width: '150px' }} placeholder="e.g. 1965" /></div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={s.formGroup}><label style={s.label}>Author/Composer</label><input type="text" value={formAuthor} onChange={(e) => setFormAuthor(e.target.value)} style={s.input} placeholder="Who wrote the music" /></div>
+                        <div style={s.formGroup}><label style={s.label}>Lyricist</label><input type="text" value={formLyricist} onChange={(e) => setFormLyricist(e.target.value)} style={s.input} placeholder="If different from composer" /></div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                        <div style={s.formGroup}><label style={s.label}>Year Written</label><input type="number" value={formYearWritten} onChange={(e) => setFormYearWritten(e.target.value)} style={s.input} placeholder="e.g. 1965" /></div>
+                        <div style={s.formGroup}><label style={s.label}>Origin</label><input type="text" value={formOrigin} onChange={(e) => setFormOrigin(e.target.value)} style={s.input} placeholder="e.g. French Sea Chanty" /></div>
+                        <div style={s.formGroup}><label style={s.label}>Original Language</label><input type="text" value={formOriginalLanguage} onChange={(e) => setFormOriginalLanguage(e.target.value)} style={s.input} placeholder="If not English" /></div>
+                      </div>
+                      <div style={s.formGroup}><label style={s.label}>Tune Of</label><input type="text" value={formTuneOf} onChange={(e) => setFormTuneOf(e.target.value)} style={s.input} placeholder="If sung to the tune of another song" /></div>
                       <button style={s.btn} onClick={saveSongBasic} disabled={saving}>{saving ? 'Saving...' : (isAddingNew ? 'Create Song' : 'Save Changes')}</button>
                     </>
                   )}
@@ -703,6 +828,74 @@ export default function Admin() {
                         </div>
                       ))}
                       {getSongNotes(selectedSong.id).length === 0 && !editingNote && <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No notes yet</div>}
+                    </>
+                  )}
+                  {songEditTab === 'media' && !isAddingNew && (
+                    <>
+                      <button style={{ ...s.btn, marginBottom: '1rem' }} onClick={startAddMedia}>+ Add Media Link</button>
+                      {editingMedia && (
+                        <div style={{ ...s.card, border: '1px solid #22c55e', marginBottom: '1rem' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Type *</label>
+                              <select value={mediaType} onChange={(e) => setMediaType(e.target.value)} style={s.select}>
+                                {MEDIA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+                            </div>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>URL *</label>
+                              <input type="text" value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} style={s.input} placeholder="https://..." />
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Title</label>
+                              <input type="text" value={mediaTitle} onChange={(e) => setMediaTitle(e.target.value)} style={s.input} placeholder="Optional display title" />
+                            </div>
+                            <div style={s.formGroup}>
+                              <label style={s.label}>Description</label>
+                              <input type="text" value={mediaDescription} onChange={(e) => setMediaDescription(e.target.value)} style={s.input} placeholder="Optional description" />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '2rem', marginBottom: '1rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={mediaDisplayExplore} onChange={(e) => setMediaDisplayExplore(e.target.checked)} />
+                              <span>Show in Explore mode</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={mediaDisplaySingalong} onChange={(e) => setMediaDisplaySingalong(e.target.checked)} />
+                              <span>Show in Singalong mode</span>
+                            </label>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button style={s.btn} onClick={saveMedia} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                            <button style={s.btnSec} onClick={cancelMediaEdit}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                      {getSongMedia(selectedSong.id).map(media => (
+                        <div key={media.id} style={s.card}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#22c55e' }}>{MEDIA_TYPES.find(t => t.value === media.media_type)?.label || media.media_type}</span>
+                                {media.display_explore && <span style={{ fontSize: '0.6rem', padding: '0.125rem 0.375rem', background: '#3b82f633', color: '#3b82f6', borderRadius: '0.25rem' }}>Explore</span>}
+                                {media.display_singalong && <span style={{ fontSize: '0.6rem', padding: '0.125rem 0.375rem', background: '#22c55e33', color: '#22c55e', borderRadius: '0.25rem' }}>Singalong</span>}
+                              </div>
+                              {media.title && <div style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>{media.title}</div>}
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <a href={media.url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>{media.url}</a>
+                              </div>
+                              {media.description && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>{media.description}</div>}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.25rem', marginLeft: '0.5rem' }}>
+                              <button style={s.btnSmall} onClick={() => startEditMedia(media)}>Edit</button>
+                              <button style={s.btnDanger} onClick={() => deleteMedia(media)}>Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {getSongMedia(selectedSong.id).length === 0 && !editingMedia && <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No media links yet</div>}
                     </>
                   )}
                   {songEditTab === 'songbooks' && !isAddingNew && (
@@ -988,7 +1181,7 @@ export default function Admin() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={s.panel}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Lyrics</option><option value="song_notes">Notes</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
+              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Lyrics</option><option value="song_notes">Notes</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
               <div><label style={s.label}>User</label><input type="text" value={logUserFilter} onChange={(e) => setLogUserFilter(e.target.value)} placeholder="Filter..." style={s.input} /></div>
               <div><label style={s.label}>Limit</label><select value={logLimit} onChange={(e) => { setLogLimit(parseInt(e.target.value)); loadAllData(); }} style={s.select}><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></div>
             </div>
