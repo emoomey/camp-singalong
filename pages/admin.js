@@ -148,13 +148,20 @@ export default function Admin() {
   const [flagType, setFlagType] = useState('problematic_content');
   const [flagExplanation, setFlagExplanation] = useState('');
 
+  // Potential duplicates
+  const [potentialDuplicates, setPotentialDuplicates] = useState([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateSearchTerm, setDuplicateSearchTerm] = useState('');
+  const [selectedDuplicateOf, setSelectedDuplicateOf] = useState(null);
+  const [duplicateNotes, setDuplicateNotes] = useState('');
+
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
   const loadAllData = async () => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-      const [songsRes, versionsRes, versionAttrsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, flagsRes, logRes] = await Promise.all([
+      const [songsRes, versionsRes, versionAttrsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, flagsRes, duplicatesRes, logRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_version_attributes?select=*`, { headers }),
@@ -167,6 +174,7 @@ export default function Admin() {
         fetch(`${SUPABASE_URL}/rest/v1/songbooks?select=*&order=display_order.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_media?select=*&order=display_order.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_flags?select=*`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/change_log?select=*&order=created_at.desc&limit=${logLimit}`, { headers })
       ]);
       setAllSongs(await songsRes.json());
@@ -181,6 +189,7 @@ export default function Admin() {
       setSongbooks(await songbooksRes.json());
       setSongMedia(await mediaRes.json());
       setSongFlags(await flagsRes.json());
+      setPotentialDuplicates(await duplicatesRes.json());
       setChangeLog(await logRes.json());
     } catch (error) { console.error('Error loading data:', error); }
   };
@@ -860,6 +869,88 @@ export default function Admin() {
     } catch (error) { showMessage('❌ Error deleting flag'); }
   };
 
+  // Potential duplicates
+  const getSongDuplicates = (songId) => potentialDuplicates.filter(d => d.song_id_a === songId || d.song_id_b === songId);
+  
+  const openDuplicateModal = () => {
+    setShowDuplicateModal(true);
+    setDuplicateSearchTerm('');
+    setSelectedDuplicateOf(null);
+    setDuplicateNotes('');
+  };
+
+  const closeDuplicateModal = () => {
+    setShowDuplicateModal(false);
+    setDuplicateSearchTerm('');
+    setSelectedDuplicateOf(null);
+    setDuplicateNotes('');
+  };
+
+  const saveDuplicateFlag = async () => {
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const data = {
+        song_id_a: selectedSong.id,
+        song_id_b: selectedDuplicateOf?.id || null,
+        status: 'pending',
+        suggested_by: 'user',
+        notes: duplicateNotes.trim() || null,
+        created_by: sessionName
+      };
+      await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates`, { 
+        method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify(data) 
+      });
+      await logChange('add', 'potential_duplicates', selectedSong.id, selectedSong.title, 'duplicate_flag', null, selectedDuplicateOf?.title || 'unknown');
+      showMessage('✅ Flagged as potential duplicate');
+      closeDuplicateModal();
+      await loadAllData();
+    } catch (error) { console.error(error); showMessage('❌ Error flagging duplicate'); }
+    setSaving(false);
+  };
+
+  const dismissDuplicate = async (dup) => {
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/potential_duplicates?id=eq.${dup.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ status: 'not_duplicate', resolved_at: new Date().toISOString(), resolved_by: sessionName }) 
+      });
+      showMessage('✅ Marked as not duplicate');
+      await loadAllData();
+    } catch (error) { showMessage('❌ Error updating'); }
+  };
+
+  // Alias swap (promote alias to title)
+  const swapAliasWithTitle = async (alias) => {
+    if (!confirm(`Swap "${alias.alias_title}" with the current title "${selectedSong.title}"? The current title will become an alias.`)) return;
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const oldTitle = selectedSong.title;
+      const newTitle = alias.alias_title;
+      
+      // Update song title
+      await fetch(`${SUPABASE_URL}/rest/v1/songs?id=eq.${selectedSong.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ title: newTitle }) 
+      });
+      
+      // Update alias to old title
+      await fetch(`${SUPABASE_URL}/rest/v1/song_aliases?id=eq.${alias.id}`, { 
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+        body: JSON.stringify({ alias_title: oldTitle }) 
+      });
+      
+      await logChange('edit', 'songs', selectedSong.id, newTitle, 'title_swap', oldTitle, newTitle);
+      showMessage('✅ Title and alias swapped');
+      await loadAllData();
+      // Update selected song with new title
+      setSelectedSong({ ...selectedSong, title: newTitle });
+      setFormTitle(newTitle);
+    } catch (error) { console.error(error); showMessage('❌ Error swapping'); }
+  };
+
   const selectGroup = (group) => {
     setSelectedGroup(group); setSelectedSong(null); setIsAddingNewGroup(false);
     setFormGroupName(group.group_name); setFormGroupType(group.group_type || 'round_group');
@@ -949,7 +1040,8 @@ export default function Admin() {
     if (!search) return true;
     const pageInfo = getSongPage(song.id);
     const page = pageInfo.page || song.page;
-    return song.title?.toLowerCase().includes(search) || page?.toLowerCase().includes(search) || song.section?.toLowerCase().includes(search); 
+    const aliases = getSongAliases(song.id).map(a => a.alias_title?.toLowerCase()).join(' ');
+    return song.title?.toLowerCase().includes(search) || page?.toLowerCase().includes(search) || song.section?.toLowerCase().includes(search) || aliases.includes(search); 
   });
   const filteredGroups = songGroups.filter(group => { const search = searchTerm.toLowerCase(); if (!search) return true; return group.group_name?.toLowerCase().includes(search); });
   const filteredChangeLog = changeLog.filter(log => { if (logTableFilter !== 'all' && log.table_name !== logTableFilter) return false; if (logUserFilter && !log.changed_by?.toLowerCase().includes(logUserFilter.toLowerCase())) return false; return true; });
@@ -1061,7 +1153,25 @@ export default function Admin() {
                         <div style={s.formGroup}><label style={s.label}>Original Language</label><input type="text" value={formOriginalLanguage} onChange={(e) => setFormOriginalLanguage(e.target.value)} style={s.input} placeholder="If not English" /></div>
                       </div>
                       <div style={s.formGroup}><label style={s.label}>Tune Of</label><input type="text" value={formTuneOf} onChange={(e) => setFormTuneOf(e.target.value)} style={s.input} placeholder="If sung to the tune of another song" /></div>
-                      <button style={s.btn} onClick={saveSongBasic} disabled={saving}>{saving ? 'Saving...' : (isAddingNew ? 'Create Song' : 'Save Changes')}</button>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <button style={s.btn} onClick={saveSongBasic} disabled={saving}>{saving ? 'Saving...' : (isAddingNew ? 'Create Song' : 'Save Changes')}</button>
+                        {!isAddingNew && <button style={{ ...s.btnSec, background: '#78350f', borderColor: '#a16207' }} onClick={openDuplicateModal}>🔀 Flag as Duplicate</button>}
+                      </div>
+                      {!isAddingNew && getSongDuplicates(selectedSong.id).filter(d => d.status === 'pending').length > 0 && (
+                        <div style={{ background: '#78350f33', border: '1px solid #a16207', borderRadius: '0.5rem', padding: '0.75rem', marginTop: '0.5rem' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fbbf24', marginBottom: '0.5rem' }}>⚠️ Potential Duplicate</div>
+                          {getSongDuplicates(selectedSong.id).filter(d => d.status === 'pending').map(dup => {
+                            const otherSongId = dup.song_id_a === selectedSong.id ? dup.song_id_b : dup.song_id_a;
+                            const otherSong = allSongs.find(s => s.id === otherSongId);
+                            return (
+                              <div key={dup.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0.25rem 0' }}>
+                                <span>May be duplicate of: <strong>{otherSong?.title || 'Unknown'}</strong>{dup.notes && ` - ${dup.notes}`}</span>
+                                <button style={s.btnSmall} onClick={() => dismissDuplicate(dup)}>Not a Duplicate</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </>
                   )}
                   {songEditTab === 'versions' && !isAddingNew && (
@@ -1384,7 +1494,13 @@ export default function Admin() {
                   {songEditTab === 'aliases' && !isAddingNew && (
                     <>
                       <div style={{ marginBottom: '1rem' }}>
-                        {getSongAliases(selectedSong.id).map(alias => (<span key={alias.id} style={s.tag}>{alias.alias_title}<button onClick={() => deleteAlias(alias)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button></span>))}
+                        {getSongAliases(selectedSong.id).map(alias => (
+                          <div key={alias.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem', background: '#1e293b', borderRadius: '0.25rem' }}>
+                            <span style={{ flex: 1 }}>{alias.alias_title}</span>
+                            <button style={s.btnSmall} onClick={() => swapAliasWithTitle(alias)} title="Promote to main title">🔀 Swap</button>
+                            <button onClick={() => deleteAlias(alias)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+                          </div>
+                        ))}
                         {getSongAliases(selectedSong.id).length === 0 && <div style={{ color: '#64748b' }}>No aliases</div>}
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}><input type="text" value={newAlias} onChange={(e) => setNewAlias(e.target.value)} placeholder="Add alternate title..." style={s.input} /><button style={s.btn} onClick={addAlias} disabled={!newAlias.trim()}>Add</button></div>
@@ -1586,7 +1702,7 @@ export default function Admin() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={s.panel}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Versions</option><option value="song_version_attributes">Version Attributes</option><option value="song_notes">Notes</option><option value="song_flags">Flags</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
+              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Versions</option><option value="song_version_attributes">Version Attributes</option><option value="song_notes">Notes</option><option value="song_flags">Flags</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option><option value="potential_duplicates">Duplicates</option></select></div>
               <div><label style={s.label}>User</label><input type="text" value={logUserFilter} onChange={(e) => setLogUserFilter(e.target.value)} placeholder="Filter..." style={s.input} /></div>
               <div><label style={s.label}>Limit</label><select value={logLimit} onChange={(e) => { setLogLimit(parseInt(e.target.value)); loadAllData(); }} style={s.select}><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></div>
             </div>
@@ -1610,6 +1726,58 @@ export default function Admin() {
               </table>
             </div>
             {filteredChangeLog.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No changes found</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Flag Modal */}
+      {showDuplicateModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1e293b', borderRadius: '0.5rem', padding: '1.5rem', width: '500px', maxHeight: '80vh', overflow: 'auto' }}>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Flag "{selectedSong?.title}" as Potential Duplicate</h3>
+            <div style={s.formGroup}>
+              <label style={s.label}>Duplicate of (optional)</label>
+              <input 
+                type="text" 
+                value={duplicateSearchTerm} 
+                onChange={(e) => { setDuplicateSearchTerm(e.target.value); setSelectedDuplicateOf(null); }} 
+                placeholder="Search for the other song..." 
+                style={s.input} 
+              />
+              {duplicateSearchTerm && !selectedDuplicateOf && (
+                <div style={{ maxHeight: '150px', overflow: 'auto', background: '#0f172a', borderRadius: '0.25rem', marginTop: '0.25rem' }}>
+                  {allSongs.filter(s => s.id !== selectedSong?.id && s.title.toLowerCase().includes(duplicateSearchTerm.toLowerCase())).slice(0, 10).map(song => (
+                    <div 
+                      key={song.id} 
+                      onClick={() => { setSelectedDuplicateOf(song); setDuplicateSearchTerm(song.title); }}
+                      style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #334155' }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {song.title} <span style={{ color: '#64748b', fontSize: '0.75rem' }}>({song.section}-{song.page})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedDuplicateOf && (
+                <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#22c55e22', borderRadius: '0.25rem', fontSize: '0.8rem' }}>
+                  Selected: <strong>{selectedDuplicateOf.title}</strong>
+                </div>
+              )}
+            </div>
+            <div style={s.formGroup}>
+              <label style={s.label}>Notes (optional)</label>
+              <textarea 
+                value={duplicateNotes} 
+                onChange={(e) => setDuplicateNotes(e.target.value)} 
+                style={s.textarea} 
+                placeholder="Any additional context..." 
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button style={s.btnSec} onClick={closeDuplicateModal}>Cancel</button>
+              <button style={s.btn} onClick={saveDuplicateFlag} disabled={saving}>{saving ? 'Saving...' : 'Flag as Duplicate'}</button>
+            </div>
           </div>
         </div>
       )}
