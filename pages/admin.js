@@ -116,7 +116,7 @@ export default function Admin() {
 
   // Additional song metadata
   const [formAuthor, setFormAuthor] = useState('');
-  const [formLyricist, setFormLyricist] = useState('');
+  const [formComposer, setFormComposer] = useState('');
   const [formOrigin, setFormOrigin] = useState('');
   const [formOriginalLanguage, setFormOriginalLanguage] = useState('');
   const [formTuneOf, setFormTuneOf] = useState('');
@@ -207,7 +207,7 @@ export default function Admin() {
     setFormSection(pageInfo.section || song.section || 'A'); 
     setFormYearWritten(song.year_written || '');
     setFormAuthor(song.author || '');
-    setFormLyricist(song.lyricist || '');
+    setFormComposer(song.composer || '');
     setFormOrigin(song.origin || '');
     setFormOriginalLanguage(song.original_language || '');
     setFormTuneOf(song.tune_of || '');
@@ -219,7 +219,7 @@ export default function Admin() {
   const startAddNewSong = () => {
     setSelectedSong(null); setSelectedGroup(null); setIsAddingNew(true);
     setFormTitle(''); setFormPage(''); setFormOldPage(''); setFormSection('A'); setFormYearWritten(''); 
-    setFormAuthor(''); setFormLyricist(''); setFormOrigin(''); setFormOriginalLanguage(''); setFormTuneOf('');
+    setFormAuthor(''); setFormComposer(''); setFormOrigin(''); setFormOriginalLanguage(''); setFormTuneOf('');
     setFormLyrics(''); setSongEditTab('basic');
   };
 
@@ -236,7 +236,7 @@ export default function Admin() {
         title: formTitle.trim(), 
         year_written: formYearWritten ? parseInt(formYearWritten) : null,
         author: formAuthor.trim() || null,
-        lyricist: formLyricist.trim() || null,
+        composer: formComposer.trim() || null,
         origin: formOrigin.trim() || null,
         original_language: formOriginalLanguage.trim() || null,
         tune_of: formTuneOf.trim() || null
@@ -784,14 +784,9 @@ export default function Admin() {
                   {(songEditTab === 'basic' || isAddingNew) && (
                     <>
                       <div style={s.formGroup}><label style={s.label}>Title *</label><input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} style={s.input} /></div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                        <div style={s.formGroup}><label style={s.label}>Section</label><select value={formSection} onChange={(e) => setFormSection(e.target.value)} style={s.select}>{Object.entries(SECTION_INFO).map(([k, n]) => <option key={k} value={k}>{k} - {n}</option>)}</select></div>
-                        <div style={s.formGroup}><label style={s.label}>Page</label><input type="text" value={formPage} onChange={(e) => setFormPage(e.target.value)} style={s.input} placeholder="e.g. A-1" /></div>
-                        <div style={s.formGroup}><label style={s.label}>Old Page</label><input type="text" value={formOldPage} onChange={(e) => setFormOldPage(e.target.value)} style={s.input} /></div>
-                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div style={s.formGroup}><label style={s.label}>Author/Composer</label><input type="text" value={formAuthor} onChange={(e) => setFormAuthor(e.target.value)} style={s.input} placeholder="Who wrote the music" /></div>
-                        <div style={s.formGroup}><label style={s.label}>Lyricist</label><input type="text" value={formLyricist} onChange={(e) => setFormLyricist(e.target.value)} style={s.input} placeholder="If different from composer" /></div>
+                        <div style={s.formGroup}><label style={s.label}>Author</label><input type="text" value={formAuthor} onChange={(e) => setFormAuthor(e.target.value)} style={s.input} placeholder="Who wrote the song" /></div>
+                        <div style={s.formGroup}><label style={s.label}>Composer</label><input type="text" value={formComposer} onChange={(e) => setFormComposer(e.target.value)} style={s.input} placeholder="If different from author" /></div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                         <div style={s.formGroup}><label style={s.label}>Year Written</label><input type="number" value={formYearWritten} onChange={(e) => setFormYearWritten(e.target.value)} style={s.input} placeholder="e.g. 1965" /></div>
