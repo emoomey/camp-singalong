@@ -142,13 +142,19 @@ export default function Admin() {
   const [versionIsDefaultExplore, setVersionIsDefaultExplore] = useState(false);
   const [versionSelectedAttributes, setVersionSelectedAttributes] = useState([]);
 
+  // Song flags
+  const [songFlags, setSongFlags] = useState([]);
+  const [editingFlag, setEditingFlag] = useState(null);
+  const [flagType, setFlagType] = useState('problematic_content');
+  const [flagExplanation, setFlagExplanation] = useState('');
+
   useEffect(() => { loadAllData(); }, []);
   useEffect(() => { if (sessionName) localStorage.setItem('camp_admin_name', sessionName); }, [sessionName]);
 
   const loadAllData = async () => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-      const [songsRes, versionsRes, versionAttrsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, logRes] = await Promise.all([
+      const [songsRes, versionsRes, versionAttrsRes, notesRes, sectionsRes, aliasesRes, groupsRes, membersRes, entriesRes, songbooksRes, mediaRes, flagsRes, logRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/songs?select=*&order=title.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_versions?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_version_attributes?select=*`, { headers }),
@@ -160,6 +166,7 @@ export default function Admin() {
         fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/songbooks?select=*&order=display_order.asc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/song_media?select=*&order=display_order.asc`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/song_flags?select=*`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/change_log?select=*&order=created_at.desc&limit=${logLimit}`, { headers })
       ]);
       setAllSongs(await songsRes.json());
@@ -173,6 +180,7 @@ export default function Admin() {
       setSongbookEntries(await entriesRes.json());
       setSongbooks(await songbooksRes.json());
       setSongMedia(await mediaRes.json());
+      setSongFlags(await flagsRes.json());
       setChangeLog(await logRes.json());
     } catch (error) { console.error('Error loading data:', error); }
   };
@@ -776,6 +784,82 @@ export default function Admin() {
     } catch (error) { showMessage('❌ Error setting default'); }
   };
 
+  // Song flags management
+  const FLAG_TYPES = [
+    { value: 'problematic_content', label: 'Problematic Content', description: 'Racism, offensive language, slurs' },
+    { value: 'cultural_sensitivity', label: 'Cultural Sensitivity', description: 'Appropriation concerns' },
+    { value: 'religious_content', label: 'Religious Content', description: 'References God/religion' },
+    { value: 'adult_content', label: 'Adult Content', description: 'Themes or words not camp-appropriate' },
+    { value: 'other', label: 'Other', description: 'Other concerns' }
+  ];
+
+  const getSongFlags = (songId) => songFlags.filter(f => f.song_id === songId);
+
+  const startAddFlag = () => {
+    setEditingFlag({ isNew: true });
+    setFlagType('problematic_content');
+    setFlagExplanation('');
+  };
+
+  const startEditFlag = (flag) => {
+    setEditingFlag(flag);
+    setFlagType(flag.flag_type);
+    setFlagExplanation(flag.explanation || '');
+  };
+
+  const cancelFlagEdit = () => setEditingFlag(null);
+
+  const saveFlag = async () => {
+    if (!flagExplanation.trim()) { showMessage('❌ Please provide an explanation'); return; }
+    setSaving(true);
+    const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const flagData = {
+        song_id: selectedSong.id,
+        flag_type: flagType,
+        explanation: flagExplanation.trim(),
+        created_by: sessionName
+      };
+      if (editingFlag.isNew) {
+        // Check if flag type already exists for this song
+        if (songFlags.some(f => f.song_id === selectedSong.id && f.flag_type === flagType)) {
+          showMessage('❌ This flag type already exists for this song'); 
+          setSaving(false); 
+          return;
+        }
+        await fetch(`${SUPABASE_URL}/rest/v1/song_flags`, { 
+          method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+          body: JSON.stringify(flagData) 
+        });
+        await logChange('add', 'song_flags', selectedSong.id, selectedSong.title, 'flag', null, flagType);
+        showMessage('✅ Flag added!');
+      } else {
+        await fetch(`${SUPABASE_URL}/rest/v1/song_flags?id=eq.${editingFlag.id}`, { 
+          method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, 
+          body: JSON.stringify({ flag_type: flagType, explanation: flagExplanation.trim() }) 
+        });
+        await logChange('edit', 'song_flags', selectedSong.id, selectedSong.title, 'flag', editingFlag.flag_type, flagType);
+        showMessage('✅ Flag updated!');
+      }
+      setEditingFlag(null);
+      await loadAllData();
+    } catch (error) { console.error(error); showMessage('❌ Error saving flag'); }
+    setSaving(false);
+  };
+
+  const deleteFlag = async (flag) => {
+    if (!confirm('Delete this flag?')) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/song_flags?id=eq.${flag.id}`, { 
+        method: 'DELETE', 
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } 
+      });
+      await logChange('delete', 'song_flags', selectedSong.id, selectedSong.title, 'flag', flag.flag_type, null);
+      showMessage('✅ Flag deleted'); 
+      await loadAllData();
+    } catch (error) { showMessage('❌ Error deleting flag'); }
+  };
+
   const selectGroup = (group) => {
     setSelectedGroup(group); setSelectedSong(null); setIsAddingNewGroup(false);
     setFormGroupName(group.group_name); setFormGroupType(group.group_type || 'round_group');
@@ -935,7 +1019,7 @@ export default function Admin() {
                 return (
                   <div key={song.id} style={s.songItem(selectedSong?.id === song.id)} onClick={() => selectSong(song)}>
                     <div style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{song.title}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Section {song.section} • Page {displayPage}{getDefaultVersion(song.id)?.lyrics_content && ' 📄'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Section {song.section} • Page {displayPage}{getDefaultVersion(song.id)?.lyrics_content && ' 📄'}{getSongFlags(song.id).length > 0 && ' ⚠️'}</div>
                   </div>
                 );
               })}
@@ -955,6 +1039,7 @@ export default function Admin() {
                     <button style={s.editTab(songEditTab === 'basic')} onClick={() => setSongEditTab('basic')}>Basic Info</button>
                     <button style={s.editTab(songEditTab === 'versions')} onClick={() => setSongEditTab('versions')}>Versions ({getSongVersions(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'notes')} onClick={() => setSongEditTab('notes')}>Notes ({getSongNotes(selectedSong.id).length})</button>
+                    <button style={s.editTab(songEditTab === 'flags')} onClick={() => setSongEditTab('flags')}>Flags ({getSongFlags(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'media')} onClick={() => setSongEditTab('media')}>Media ({getSongMedia(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'songbooks')} onClick={() => setSongEditTab('songbooks')}>Songbooks ({getSongSongbookEntries(selectedSong.id).length})</button>
                     <button style={s.editTab(songEditTab === 'sections')} onClick={() => setSongEditTab('sections')}>Sections</button>
@@ -1090,6 +1175,64 @@ export default function Admin() {
                         </div>
                       ))}
                       {getSongNotes(selectedSong.id).length === 0 && !editingNote && <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No notes yet</div>}
+                    </>
+                  )}
+                  {songEditTab === 'flags' && !isAddingNew && (
+                    <>
+                      <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#1e293b', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+                        ⚠️ Flags are song-level warnings about content concerns. Use version attributes to mark when a specific version addresses these issues.
+                      </div>
+                      <button style={{ ...s.btn, marginBottom: '1rem' }} onClick={startAddFlag}>+ Add Flag</button>
+                      {editingFlag && (
+                        <div style={{ ...s.card, border: '1px solid #f59e0b', marginBottom: '1rem' }}>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Flag Type *</label>
+                            <select value={flagType} onChange={(e) => setFlagType(e.target.value)} style={s.select}>
+                              {FLAG_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                            <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
+                              {FLAG_TYPES.find(t => t.value === flagType)?.description}
+                            </div>
+                          </div>
+                          <div style={s.formGroup}>
+                            <label style={s.label}>Explanation *</label>
+                            <textarea 
+                              value={flagExplanation} 
+                              onChange={(e) => setFlagExplanation(e.target.value)} 
+                              style={s.textarea} 
+                              placeholder="Describe the specific concern (e.g., 'Original lyrics contain the word darkies')" 
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button style={s.btn} onClick={saveFlag} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                            <button style={s.btnSec} onClick={cancelFlagEdit}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                      {getSongFlags(selectedSong.id).map(flag => (
+                        <div key={flag.id} style={{ ...s.card, borderLeft: '3px solid #f59e0b' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#f59e0b' }}>
+                                  {FLAG_TYPES.find(t => t.value === flag.flag_type)?.label || flag.flag_type}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.875rem', color: '#e2e8f0' }}>{flag.explanation}</div>
+                              {flag.created_by && (
+                                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>Added by {flag.created_by}</div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                              <button style={s.btnSmall} onClick={() => startEditFlag(flag)}>Edit</button>
+                              <button style={s.btnDanger} onClick={() => deleteFlag(flag)}>Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {getSongFlags(selectedSong.id).length === 0 && !editingFlag && (
+                        <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>No flags. This song has no content concerns noted.</div>
+                      )}
                     </>
                   )}
                   {songEditTab === 'media' && !isAddingNew && (
@@ -1443,7 +1586,7 @@ export default function Admin() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={s.panel}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Versions</option><option value="song_version_attributes">Version Attributes</option><option value="song_notes">Notes</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
+              <div><label style={s.label}>Table</label><select value={logTableFilter} onChange={(e) => setLogTableFilter(e.target.value)} style={s.select}><option value="all">All</option><option value="songs">Songs</option><option value="song_versions">Versions</option><option value="song_version_attributes">Version Attributes</option><option value="song_notes">Notes</option><option value="song_flags">Flags</option><option value="song_media">Media</option><option value="song_groups">Groups</option><option value="song_group_members">Members</option><option value="song_sections">Sections</option><option value="song_aliases">Aliases</option><option value="songbooks">Songbooks</option><option value="song_songbook_entries">Songbook Entries</option></select></div>
               <div><label style={s.label}>User</label><input type="text" value={logUserFilter} onChange={(e) => setLogUserFilter(e.target.value)} placeholder="Filter..." style={s.input} /></div>
               <div><label style={s.label}>Limit</label><select value={logLimit} onChange={(e) => { setLogLimit(parseInt(e.target.value)); loadAllData(); }} style={s.select}><option value="50">50</option><option value="100">100</option><option value="250">250</option></select></div>
             </div>
