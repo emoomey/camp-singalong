@@ -296,6 +296,7 @@ export default function Admin() {
     localStorage.removeItem('supabase_access_token');
     localStorage.removeItem('supabase_refresh_token');
     setUser(null);
+    setUserProfile(null);
   };
 
   const loadAllData = async () => {
