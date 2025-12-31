@@ -1618,7 +1618,7 @@ if (view === 'display' && showLyrics && currentSong) {
                         <a href="/admin/users" className={`block px-4 py-3 text-sm font-medium ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
                           👥 Users
                         </a>
-                        <a href="/admin/reports" className={`block px-4 py-3 text-sm font-medium ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
+                        <a href="/reports" className={`block px-4 py-3 text-sm font-medium ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}>
                           📊 Insights
                         </a>
                       </div>

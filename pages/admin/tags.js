@@ -576,7 +576,7 @@ export default function TagManagement() {
             <a href="/" className="text-slate-400 hover:text-slate-300 text-sm">← Singalong</a>
             <a href="/admin" className="text-slate-400 hover:text-slate-300 text-sm">Songs</a>
             <a href="/admin/users" className="text-slate-400 hover:text-slate-300 text-sm">Users</a>
-            <a href="/admin/reports" className="text-slate-400 hover:text-slate-300 text-sm">Insights</a>
+            <a href="/reports" className="text-slate-400 hover:text-slate-300 text-sm">Insights</a>
             <span className="text-slate-500">|</span>
             <span className="text-slate-400 text-sm">👋 {userProfile?.display_name}</span>
             <button onClick={handleLogout} className="text-red-400 hover:text-red-300 text-sm">Sign out</button>
