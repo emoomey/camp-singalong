@@ -345,12 +345,15 @@ export default function Admin() {
   const logChange = async (action, tableName, recordId, recordTitle, fieldChanged = null, oldValue = null, newValue = null) => {
     try {
       const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+      // For song-related tables, recordId is the song_id
+      // For non-song tables (songbooks, song_groups), recordId may be null
+      const songId = recordId && typeof recordId === 'number' ? recordId : null;
       await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
         method: 'POST', headers,
         body: JSON.stringify({ 
           action, 
           table_name: tableName, 
-          song_id: tableName === 'songs' ? recordId : null, 
+          song_id: songId, 
           song_title: recordTitle, 
           field_changed: fieldChanged, 
           old_value: oldValue ? String(oldValue).substring(0, 500) : null, 
@@ -615,13 +618,23 @@ export default function Admin() {
         if (songbookEntries.some(e => e.song_id === selectedSong.id && e.songbook_id === entrySongbookId)) {
           showMessage('❌ Entry already exists for this songbook'); setSaving(false); return;
         }
-        await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries`, { method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Songbook entry save failed:', errorText);
+          showMessage('❌ Error saving entry'); setSaving(false); return;
+        }
         const sb = songbooks.find(s => s.id === entrySongbookId);
-        await logChange('add', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', null, `${sb?.short_name}: ${entryPage.trim()}`);
+        try { await logChange('add', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', null, `${sb?.short_name}: ${entryPage.trim()}`); } catch (e) { console.error('Log failed:', e); }
         showMessage('✅ Songbook entry added!');
       } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?id=eq.${editingSongbookEntry.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
-        await logChange('edit', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', editingSongbookEntry.page, entryPage.trim());
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/song_songbook_entries?id=eq.${editingSongbookEntry.id}`, { method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' }, body: JSON.stringify(entryData) });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Songbook entry update failed:', errorText);
+          showMessage('❌ Error updating entry'); setSaving(false); return;
+        }
+        try { await logChange('edit', 'song_songbook_entries', selectedSong.id, selectedSong.title, 'songbook_entry', editingSongbookEntry.page, entryPage.trim()); } catch (e) { console.error('Log failed:', e); }
         showMessage('✅ Songbook entry updated!');
       }
       setEditingSongbookEntry(null); await loadAllData();
@@ -1642,7 +1655,7 @@ export default function Admin() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <a href="/admin/tags" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.75rem' }}>Tags</a>
           <a href="/admin/users" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.75rem' }}>Users</a>
-          <a href="/reports" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.75rem' }}>Insights</a>
+          <a href="/admin/reports" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.75rem' }}>Insights</a>
           <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>👋 {currentUserName}</span>
           <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>Sign out</button>
         </div>
